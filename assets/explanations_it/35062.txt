@@ -1,0 +1,1 @@
+"saldatura senza pezzi da dieci e solo un problema nel saldare un pezzo da venti nell'angolo in alto a sinistra che sporge in seguito tagliando l'angolo del piccolo pezzo mancante al centro per adattarlo"

@@ -1,0 +1,1 @@
+"texture con un pezzo non saldabile in alto a sinistra che non si collega ad alcuna parte e, oltre a ciò, è abbastanza robusto da poter essere risaldato insieme dopo aver utilizzato solo dei punti la prima volta"

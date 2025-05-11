@@ -1,0 +1,1 @@
+"pennarello pilota da disegno utilizzato per tracciare i bordi delle illustrazioni"

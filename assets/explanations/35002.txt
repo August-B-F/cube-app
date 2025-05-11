@@ -1,0 +1,1 @@
+"texture welded outside with only dots causing a few pieces to move forward especially in the lower left and welding it again filling quite a big gap to the right and also reconnecting the piece on the left top which broke off"

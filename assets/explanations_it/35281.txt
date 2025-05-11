@@ -1,0 +1,1 @@
+"con questa texture procede senza problemi, ma è un po' difficile saldare in alto a destra con la nuova configurazione di luci e ventilazione, tuttavia ora si respirano meno fumi"

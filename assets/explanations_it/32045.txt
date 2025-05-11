@@ -1,0 +1,1 @@
+"selezione di primi piani mantenendo la telecamera verticale"

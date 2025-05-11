@@ -1,0 +1,1 @@
+"texture liscia, ma per un pezzo in alto a sinistra che si solleva mentre lo saldavo, anche se avevo fissato entrambi i lati con un punto di saldatura e in generale una texture con alcune connessioni deboli sul lato destro ma ancora ben collegato alla base"

@@ -1,0 +1,1 @@
+"fixing the issue with the helmet shading and over sensibility and making an okay texture but for the bottom left corner poorly connected in several parts"

@@ -1,0 +1,1 @@
+"all the upper left corner connected poorly to the rest and so also a small piece on the upper right only welded in corners making it necessary to a have a net in the back of the textures to support such cases and beside that having no other issues but the gas bottle getting empty any moment"

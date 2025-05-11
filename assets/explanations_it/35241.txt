@@ -1,0 +1,1 @@
+"saldare come un treno e gestire anche una texture extra senza problemi, ma nell'assemblaggio vero e proprio dover rompere un pezzo precedentemente saldato per adattarlo all'altezza di un pezzo più a destra"

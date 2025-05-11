@@ -1,0 +1,1 @@
+"riuscendo a ridimensionare tutte le immagini dei pattern in modo da non doverli ridimensionare singolarmente nel programma vettoriale e diventando più veloce nell'impostare le nuove lastre da stampare, riuscendo inoltre a salvare le impostazioni nell'interfaccia della macchina, velocizzando il lavoro e avendo più tempo per stare con la mia famiglia convalescente"

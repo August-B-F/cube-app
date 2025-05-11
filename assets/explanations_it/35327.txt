@@ -1,0 +1,1 @@
+"risolvo il problema con l'ombreggiatura del casco e la sensibilità eccessiva e creo una texture accettabile, ma l'angolo in basso a sinistra è mal collegato in diverse parti"

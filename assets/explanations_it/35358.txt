@@ -1,0 +1,1 @@
+"texture con i pezzi in alto a sinistra e in basso a destra mal collegati, con un piccolo pezzo sulla destra sovrapposto e la necessità di rompere la saldatura per riposizionarlo"

@@ -1,0 +1,1 @@
+"texture saldata all'esterno con solo puntini che causano lo spostamento in avanti di alcuni pezzi, soprattutto in basso a sinistra, e la saldatura di nuovo riempiendo un grande spazio a destra e ricollegando anche il pezzo in alto a sinistra che si era rotto"

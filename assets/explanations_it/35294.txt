@@ -1,0 +1,1 @@
+"creando una texture robusta nonostante i numerosi pezzi piegati e solo dopo aver finito mi sono reso conto che uno di essi si era spostato troppo a destra, ma questa volta accettando l'errore alla fine, tuttavia tornandoci sopra e rompendo la texture per saldarla correttamente, creando comunque un bel divario sul lato"

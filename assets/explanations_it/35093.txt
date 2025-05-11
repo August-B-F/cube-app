@@ -1,0 +1,1 @@
+"impossibilità di assemblare l'intera texture in anticipo con troppi pezzi piegati e realizzando la texture in due parti, ottenendo una texture abbastanza buona con un angolo inferiore sinistro debole"

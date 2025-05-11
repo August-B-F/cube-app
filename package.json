@@ -1,0 +1,30 @@
+{
+  "name": "cube-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^4.5.136",
+    "pdfreader": "^3.0.4",
+    "react-pdf": "^9.1.0"
+  },
+  "build": {
+    "appId": "cube-app.com",
+    "productName": "Cube",
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

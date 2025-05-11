@@ -1,0 +1,1 @@
+"texture con un piccolo pezzo debolmente collegato al centro e anche un pezzo in alto che scivola verso il basso dopo averlo fissato in modo non sufficiente con un punto di saldatura e averlo semplicemente saldato sopra, trovando troppo complicato rompere di nuovo la texture per ripararla"

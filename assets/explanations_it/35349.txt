@@ -1,0 +1,1 @@
+"texture pessima, con un pezzo piegato in basso che bisogna forzare con forza verso il basso e saldare un pezzo in alto nella posizione sbagliata, dovendo rompere la saldatura e spostarla, compromettendo il resto dell'assemblaggio anche con un pezzo sulla sinistra mal collegato"

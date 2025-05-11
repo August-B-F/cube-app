@@ -1,0 +1,1 @@
+"texture debole, mal collegata da sinistra a destra, ma a parte questo abbastanza facile da saldare insieme senza problemi, ma sto pensando se la rete metallica che sostiene le texture nel museo debba essere tenuta all'interno o all'esterno"

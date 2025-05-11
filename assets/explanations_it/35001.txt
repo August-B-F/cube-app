@@ -1,0 +1,1 @@
+"le mie primissime texture inizialmente si saldavano all'esterno creando solo puntini e rendendole davvero troppo deboli, tanto da doverle recuperare in seguito e risaldarle insieme rimuovendo un pezzo di saldatura che fuoriusciva dal retro"

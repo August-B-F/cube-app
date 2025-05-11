@@ -1,0 +1,1 @@
+"texture con un pezzo completamente isolato in basso a sinistra e un pezzo piegato in alto a destra, impossibile appiattirlo completamente, inoltre un pezzo cade leggermente a sinistra, dovendo riempire un bel po' di spazio"

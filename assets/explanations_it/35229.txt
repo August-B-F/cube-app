@@ -1,0 +1,1 @@
+"tutto l'angolo in alto a sinistra era mal collegato al resto e così anche un piccolo pezzo in alto a destra era saldato solo negli angoli, rendendo necessario avere una rete sul retro delle texture per supportare tali casi e, a parte questo, non ci sono altri problemi se non il fatto che la bombola del gas si svuota da un momento all'altro"

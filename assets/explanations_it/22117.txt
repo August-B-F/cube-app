@@ -1,0 +1,1 @@
+"lampada a led utilizzata per ricreare luci rgb dai valori del mio progetto meteorologico nel mio showroom svedese"

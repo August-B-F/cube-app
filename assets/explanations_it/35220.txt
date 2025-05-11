@@ -1,0 +1,1 @@
+"texture solida senza problemi, ma la parte sinistra è un po' più alta della destra e il problema è stato risolto spostando un pezzo un po' più in basso"

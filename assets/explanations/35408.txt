@@ -1,0 +1,1 @@
+"finding a piece in the texture overlapped on the right side and having to break open it but then unable to put that side flat again also with a poorly connected small piece in the middle"

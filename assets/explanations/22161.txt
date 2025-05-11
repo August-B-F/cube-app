@@ -1,0 +1,1 @@
+"RGB lamp used to simulate the weather"

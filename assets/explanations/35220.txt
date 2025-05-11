@@ -1,0 +1,1 @@
+"solid texture without any issues but the left part going a bit higher than the right and fixing the problem moving one piece a bit down"

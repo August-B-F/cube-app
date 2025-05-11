@@ -1,0 +1,1 @@
+"all'inizio ho solo saldato queste texture in punti, ma recuperandole dalla pila e saldandole correttamente ho scoperto che molte piastre si sono leggermente spostate all'indietro, probabilmente sotto il peso"

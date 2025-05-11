@@ -1,0 +1,1 @@
+"texture realizzate all'inizio solo con puntini e risaldate in seguito, trovando molti spazi vuoti da riempire, in particolare uno grande a destra ma anche sul lato sinistro, rendendolo alla fine abbastanza robusto, fatta eccezione per un pezzo in basso a sinistra"

@@ -1,0 +1,1 @@
+"ruota di memoria che ho generato per mostrare l'intensità degli oggetti utilizzati con la mia mano destra, con ogni oggetto che rappresenta un cerchio e visualizzato cronologicamente in stile orologio"

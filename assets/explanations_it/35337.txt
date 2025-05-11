@@ -1,0 +1,1 @@
+"texture senza problemi ma un piccolo pezzo a sinistra è stato tagliato male, riuscendo comunque a inserirlo nel modello e a ottenere un po' di tutto il flusso d'aria che passa attraverso il casco"

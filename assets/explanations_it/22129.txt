@@ -1,0 +1,1 @@
+"Lampada a LED da discoteca utilizzata per provare a simulare i colori RGB delle condizioni meteorologiche registrate"
