@@ -93,7 +93,7 @@ cube-app/
    ```bash
    git clone https://github.com/Bob1883/cube-app.git
    cd cube-app
-````
+```
 
 2. **Install dependencies**
 
