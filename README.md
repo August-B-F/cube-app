@@ -83,17 +83,18 @@ cube-app/
 ├── README.md                # This document
 └── node_modules/            # Installed dependencies
 
-````
+```
 
 ---
 
 ## Installation & Usage
 
 1. **Clone the repo**  
+
    ```bash
    git clone https://github.com/Bob1883/cube-app.git
    cd cube-app
-```
+   ```
 
 2. **Install dependencies**
 
