@@ -1,6 +1,6 @@
 # Cube App
 
-An Electron.js desktop application for Italian artist Alberto Frigo, designed to present and explore multimedia “projects” stored inside an 8*8*8 meter cube in the Alps. The cube holds many codes that can be decoded with this app. These files include text, video, audio, PDF or image files letting the artist dynamically showcase his work.
+An Electron.js desktop application for Italian artist Alberto Frigo, designed to present and explore multimedia “projects” stored inside an 8×8×8 meter cube in the Alps. The cube holds many codes that can be decoded with this app. These files include text, video, audio, PDF or image files letting the artist dynamically showcase his work.
 
 ![Cube Preview](assets/cube-app-gif.gif)
 
@@ -33,7 +33,7 @@ Ideal for art installations or interactive exhibitions.
 
 ## Features
 
-- **Scalable UI** that adapts to any window size  
+- **Scalable UI** that adapts to the window size  
 - **Bilingual interface**: English ↔ Italian  
 - **History tracking** of viewed projects  
 - **Built-in viewer** for PDF, text, video, sound and images  
@@ -54,45 +54,12 @@ These instructions will get you a copy of the project up and running on your loc
 
 ---
 
-## Project Structure
-
-```
-
-cube-app/
-├── assets/
-│   ├── explanations/        # English descriptions for each project
-│   ├── explanations_it/     # Italian descriptions for each project
-│   ├── icons/               # App icons
-│   └── Inter.ttf            # Custom font file
-├── js/
-│   └── App.js               # Main React UI component
-├── src/
-│   ├── code/                # Third-party libraries and helpers
-│   │   ├── babel.js
-│   │   ├── pdf.js
-│   │   ├── react-dom17.js
-│   │   ├── react-router.js
-│   │   └── react17.js
-│   └── css/
-│       └── style.css        # Global stylesheet
-├── index.html               # App shell
-├── main.js                  # Electron main process
-├── preload.js               # Context-bridge setup
-├── package.json             # Project metadata & dependencies
-├── package-lock.json        # Exact dependency versions
-├── README.md                # This document
-└── node_modules/            # Installed dependencies
-
-```
-
----
-
 ## Installation & Usage
 
 1. **Clone the repo**  
 
    ```bash
-   git clone https://github.com/Bob1883/cube-app.git
+   git clone https://github.com/Bob1883/cube-app
    cd cube-app
    ```
 
