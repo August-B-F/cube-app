@@ -92,8 +92,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ## License
 
-This project is licensed for **educational and non-commercial use** only. You’re welcome to fork, adapt and share—please retain attribution to Alberto Frigo.
-
+This project is licensed for educational and non-commercial use only. You’re welcome to fork, adapt and share. Please retain attribution to Alberto Frigo.
 ---
 
 ## Contact
