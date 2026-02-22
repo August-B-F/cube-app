@@ -51,7 +51,7 @@ impl Translations {
         Self { translations }
     }
 
-    pub fn get<'a>(&'a self, key: &str, language: Language) -> &'a str {
+    pub fn get<'a>(&'a self, key: &'a str, language: Language) -> &'a str {
         let lang_code = match language {
             Language::English => "en",
             Language::Italian => "it",
