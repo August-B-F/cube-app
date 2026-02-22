@@ -1,4 +1,5 @@
 mod app;
+mod icons;
 mod ui;
 mod file_handler;
 mod history;
