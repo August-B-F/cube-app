@@ -14,7 +14,6 @@ impl Translations {
     pub fn new() -> Self {
         let mut translations = HashMap::new();
         
-        // English translations
         let mut en = HashMap::new();
         en.insert("settings".to_string(), "Settings".to_string());
         en.insert("history".to_string(), "History".to_string());
@@ -32,7 +31,6 @@ impl Translations {
         en.insert("close".to_string(), "Close".to_string());
         translations.insert("en".to_string(), en);
         
-        // Italian translations
         let mut it = HashMap::new();
         it.insert("settings".to_string(), "Impostazioni".to_string());
         it.insert("history".to_string(), "Cronologia".to_string());
@@ -53,7 +51,7 @@ impl Translations {
         Self { translations }
     }
 
-    pub fn get(&self, key: &str, language: Language) -> &str {
+    pub fn get<'a>(&'a self, key: &str, language: Language) -> &'a str {
         let lang_code = match language {
             Language::English => "en",
             Language::Italian => "it",

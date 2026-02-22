@@ -274,7 +274,8 @@ impl eframe::App for CubeApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.update_popups();
         
-        let ui_renderer = UI::new(self, &self.translations);
+        // Pass references directly to UI avoiding double-borrow on `self`
+        let mut ui_renderer = UI::new(self);
         ui_renderer.render(ctx);
     }
 }
