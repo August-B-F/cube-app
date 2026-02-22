@@ -41,11 +41,6 @@ impl<'a> UI<'a> {
             self.render_tutorial(ctx, tut_anim);
         }
 
-        let opt_anim = ctx.animate_bool_with_time(Id::new("opt_anim"), self.app.show_options, 0.3);
-        if opt_anim > 0.0 {
-            self.render_options(ctx, opt_anim);
-        }
-
         let hist_anim = ctx.animate_bool_with_time(Id::new("hist_anim"), self.app.show_history, 0.3);
         if hist_anim > 0.0 {
             self.render_history(ctx, hist_anim);
@@ -56,6 +51,12 @@ impl<'a> UI<'a> {
             self.render_explanation(ctx, exp_anim);
         }
 
+        // Options drawer goes last so it sits on top of everything else
+        let opt_anim = ctx.animate_bool_with_time(Id::new("opt_anim"), self.app.show_options, 0.3);
+        if opt_anim > 0.0 {
+            self.render_options(ctx, opt_anim);
+        }
+
         self.render_popups(ctx);
     }
 
@@ -64,13 +65,20 @@ impl<'a> UI<'a> {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // Options Hamburger Button (top right)
+            // Fix: Placed in Order::Foreground so it doesn't get stuck behind overlays
             egui::Area::new(Id::new("options_btn_area"))
-                .order(egui::Order::Background)
+                .order(egui::Order::Foreground)
                 .anchor(egui::Align2::RIGHT_TOP, [-50.0, 50.0])
                 .show(ctx, |ui| {
-                    let btn = egui::Button::new(egui::RichText::new("☰").size(30.0).color(BUTTON_COLOR))
-                        .frame(false);
-                    if ui.add_sized([43.0, 43.0], btn).clicked() {
+                    let mut style = (*ctx.style()).clone();
+                    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                    style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(20);
+                    style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
+                    ui.style_mut().visuals = style;
+
+                    let btn = egui::Button::new(egui::RichText::new("☰").size(40.0).color(BUTTON_COLOR))
+                        .frame(true);
+                    if ui.add_sized([60.0, 60.0], btn).clicked() {
                         self.app.show_options = true;
                     }
                 });
@@ -178,12 +186,11 @@ impl<'a> UI<'a> {
             .order(egui::Order::Foreground)
             .fixed_pos(Pos2::ZERO)
             .show(ctx, |ui| {
-                ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((50.0 * anim) as u8));
+                ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((120.0 * anim) as u8));
             });
 
-        // Slide in from top
         egui::Area::new(Id::new("tutorial_content"))
-            .order(egui::Order::Foreground)
+            .order(egui::Order::Tooltip)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 20.0 * (1.0 - anim)])
             .show(ctx, |ui| {
                 ui.multiply_opacity(anim);
@@ -191,24 +198,30 @@ impl<'a> UI<'a> {
                 egui::Frame::none()
                     .fill(BACKGROUND_COLOR)
                     .rounding(Rounding::same(30.0))
-                    .inner_margin(Margin::same(24.0))
+                    .inner_margin(Margin::same(40.0))
                     .show(ui, |ui| {
-                        ui.set_width(312.0);
+                        ui.set_width(450.0);
                         
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new(welcome).size(24.0).color(PRIMARY_TEXT_COLOR).strong());
-                            ui.add_space(6.0);
-                            ui.label(egui::RichText::new(tutorial).size(16.0).color(PRIMARY_TEXT_COLOR));
-                            ui.add_space(20.0);
+                            ui.label(egui::RichText::new(welcome).size(30.0).color(PRIMARY_TEXT_COLOR).strong());
+                            ui.add_space(15.0);
+                            ui.label(egui::RichText::new(tutorial).size(20.0).color(PRIMARY_TEXT_COLOR));
+                            ui.add_space(30.0);
                             
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                let btn = egui::Button::new(egui::RichText::new(next).color(ACTION_BUTTON_COLOR)).frame(false);
-                                if ui.add(btn).clicked() { self.app.show_tutorial = false; }
+                                let mut style = (*ctx.style()).clone();
+                                style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                                style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(20);
+                                style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
+                                ui.style_mut().visuals = style;
+
+                                let btn = egui::Button::new(egui::RichText::new(next).size(22.0).color(ACTION_BUTTON_COLOR)).frame(true);
+                                if ui.add_sized([100.0, 45.0], btn).clicked() { self.app.show_tutorial = false; }
                                 
-                                ui.add_space(10.0);
+                                ui.add_space(20.0);
                                 
-                                let btn2 = egui::Button::new(egui::RichText::new(skip).color(ACTION_BUTTON_COLOR)).frame(false);
-                                if ui.add(btn2).clicked() { self.app.show_tutorial = false; }
+                                let btn2 = egui::Button::new(egui::RichText::new(skip).size(22.0).color(ACTION_BUTTON_COLOR)).frame(true);
+                                if ui.add_sized([150.0, 45.0], btn2).clicked() { self.app.show_tutorial = false; }
                             });
                         });
                     });
@@ -216,52 +229,78 @@ impl<'a> UI<'a> {
     }
 
     fn render_options(&mut self, ctx: &egui::Context, anim: f32) {
+        // Dark background overlay
         egui::Area::new(Id::new("options_bg_area"))
             .order(egui::Order::Foreground)
             .fixed_pos(Pos2::ZERO)
             .show(ctx, |ui| {
                 let response = ui.allocate_response(ctx.screen_rect().size(), Sense::click());
-                if response.clicked() { self.app.show_options = false; } // Close on click outside
-                ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((50.0 * anim) as u8));
+                if response.clicked() { self.app.show_options = false; }
+                ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((120.0 * anim) as u8));
             });
 
-        // Slide in from right
-        let offset_x = (1.0 - anim) * 200.0;
+        // Slide-in Drawer from the right
+        let drawer_width = 350.0;
+        let offset_x = (1.0 - anim) * drawer_width;
+        
         egui::Area::new(Id::new("options_popup_area"))
-            .order(egui::Order::Foreground)
-            .anchor(egui::Align2::RIGHT_TOP, [-34.0 + offset_x, 34.0])
+            .order(egui::Order::Tooltip) // Extremely high Z-index to cover everything
+            .anchor(egui::Align2::RIGHT_TOP, [offset_x, 0.0])
             .show(ctx, |ui| {
-                ui.multiply_opacity(anim);
                 
                 egui::Frame::none()
                     .fill(BACKGROUND_COLOR)
-                    .rounding(Rounding::same(10.0))
-                    .inner_margin(Margin::same(24.0))
+                    .rounding(Rounding { nw: 20.0, sw: 20.0, ne: 0.0, se: 0.0 })
+                    .inner_margin(Margin::same(30.0))
                     .show(ui, |ui| {
-                        // Prevent clicks inside popup from bleeding to background
+                        // Prevent clicks inside drawer from closing it
                         ui.interact(ui.max_rect(), Id::new("opt_block"), Sense::click());
                         
+                        ui.set_height(ctx.screen_rect().height());
+                        ui.set_width(drawer_width);
+                        
                         ui.vertical(|ui| {
-                            let history_str = self.app.translations.get("history", self.app.language).to_string();
-                            let help_str = self.app.translations.get("help", self.app.language).to_string();
-                            let lang_str = self.app.translations.get("language", self.app.language).to_string();
+                            // Close Button
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                                let mut style = (*ctx.style()).clone();
+                                style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                                style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(20);
+                                style.visuals.widgets.hovered.rounding = Rounding::same(20.0);
+                                ui.style_mut().visuals = style;
+
+                                if ui.add_sized([40.0, 40.0], egui::Button::new(egui::RichText::new("✖").size(24.0).color(PRIMARY_TEXT_COLOR))).clicked() {
+                                    self.app.show_options = false;
+                                }
+                            });
+
+                            ui.add_space(30.0);
+
+                            let history_str = format!("📋 {}", self.app.translations.get("history", self.app.language));
+                            let help_str = format!("❔ {}", self.app.translations.get("help", self.app.language));
+                            let lang_str = format!("🌍 {}", self.app.translations.get("language", self.app.language));
+
+                            let mut style = (*ctx.style()).clone();
+                            style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                            style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
+                            style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
+                            ui.style_mut().visuals = style;
 
                             let btn_style = |text: String| {
-                                egui::Button::new(egui::RichText::new(text).strong().size(15.0).color(PRIMARY_TEXT_COLOR))
-                                    .frame(false)
+                                egui::Button::new(egui::RichText::new(text).size(24.0).color(PRIMARY_TEXT_COLOR))
+                                    .frame(true)
                             };
 
-                            if ui.add(btn_style(format!("📜 {}", history_str))).clicked() {
+                            if ui.add_sized([drawer_width - 60.0, 60.0], btn_style(history_str)).clicked() {
                                 self.app.show_history = true;
                                 self.app.show_options = false;
                             }
-                            ui.add_space(20.0);
-                            if ui.add(btn_style(format!("❓ {}", help_str))).clicked() {
+                            ui.add_space(15.0);
+                            if ui.add_sized([drawer_width - 60.0, 60.0], btn_style(help_str)).clicked() {
                                 self.app.show_tutorial = true;
                                 self.app.show_options = false;
                             }
-                            ui.add_space(20.0);
-                            if ui.add(btn_style(format!("🌐 {}", lang_str))).clicked() {
+                            ui.add_space(15.0);
+                            if ui.add_sized([drawer_width - 60.0, 60.0], btn_style(lang_str)).clicked() {
                                 use crate::translations::Language;
                                 self.app.language = match self.app.language {
                                     Language::English => Language::Italian,
@@ -280,60 +319,66 @@ impl<'a> UI<'a> {
             .show(ctx, |ui| {
                 let response = ui.allocate_response(ctx.screen_rect().size(), Sense::click());
                 if response.clicked() { self.app.show_history = false; }
-                ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((50.0 * anim) as u8));
+                ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((120.0 * anim) as u8));
             });
 
         let mut project_to_open = None;
 
         egui::Area::new(Id::new("history_popup_area"))
-            .order(egui::Order::Foreground)
+            .order(egui::Order::Tooltip)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 20.0 * (1.0 - anim)])
             .show(ctx, |ui| {
                 ui.multiply_opacity(anim);
                 
                 egui::Frame::none()
                     .fill(BACKGROUND_COLOR)
-                    .rounding(Rounding::same(15.0))
-                    .inner_margin(Margin::same(30.0))
+                    .rounding(Rounding::same(20.0))
+                    .inner_margin(Margin::same(40.0))
                     .show(ui, |ui| {
                         ui.interact(ui.max_rect(), Id::new("hist_block"), Sense::click());
-                        ui.set_width(340.0);
+                        ui.set_width(500.0);
 
                         let title = self.app.translations.get("history", self.app.language).to_string();
-                        ui.heading(egui::RichText::new(title).size(24.0).color(PRIMARY_TEXT_COLOR));
-                        ui.add_space(10.0);
+                        ui.heading(egui::RichText::new(title).size(30.0).color(PRIMARY_TEXT_COLOR).strong());
+                        ui.add_space(20.0);
 
-                        egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                        egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
                             let items = self.app.history.get_items();
                             if items.is_empty() {
-                                ui.label(self.app.translations.get("historyEmpty", self.app.language));
+                                ui.label(egui::RichText::new(self.app.translations.get("historyEmpty", self.app.language)).size(18.0).color(SECONDARY_TEXT_COLOR));
                             } else {
                                 for item in items {
                                     ui.horizontal(|ui| {
-                                        let btn = egui::Button::new(egui::RichText::new(&item.code).strong().color(PRIMARY_TEXT_COLOR)).frame(false);
+                                        let mut style = (*ctx.style()).clone();
+                                        style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                                        style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
+                                        style.visuals.widgets.hovered.rounding = Rounding::same(8.0);
+                                        ui.style_mut().visuals = style;
+
+                                        let btn = egui::Button::new(egui::RichText::new(&item.code).size(22.0).color(PRIMARY_TEXT_COLOR)).frame(true);
                                         if ui.add(btn).clicked() {
                                             project_to_open = Some(item.code.clone());
                                         }
                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                            ui.label(egui::RichText::new(item.timestamp.format("%H:%M:%S").to_string()).size(12.0).color(SECONDARY_TEXT_COLOR));
+                                            ui.label(egui::RichText::new(item.timestamp.format("%H:%M:%S").to_string()).size(16.0).color(SECONDARY_TEXT_COLOR));
                                         });
                                     });
                                     ui.painter().line_segment(
                                         [ui.cursor().min, Pos2::new(ui.cursor().max.x, ui.cursor().min.y)],
                                         Stroke::new(0.5, Color32::from_rgb(169, 169, 169))
                                     );
-                                    ui.add_space(5.0);
+                                    ui.add_space(8.0);
                                 }
                             }
                         });
 
-                        ui.add_space(20.0);
+                        ui.add_space(30.0);
                         
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
-                        let btn = egui::Button::new(egui::RichText::new(close_str).color(Color32::WHITE).size(16.0))
-                            .fill(ACTION_BUTTON_COLOR).rounding(Rounding::same(5.0));
+                        let btn = egui::Button::new(egui::RichText::new(close_str).color(Color32::WHITE).size(20.0))
+                            .fill(ACTION_BUTTON_COLOR).rounding(Rounding::same(8.0));
                             
-                        if ui.add(btn).clicked() {
+                        if ui.add_sized([100.0, 45.0], btn).clicked() {
                             self.app.show_history = false;
                         }
                     });
@@ -351,40 +396,40 @@ impl<'a> UI<'a> {
             .show(ctx, |ui| {
                 let response = ui.allocate_response(ctx.screen_rect().size(), Sense::click());
                 if response.clicked() { self.app.show_explanation = false; }
-                ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((128.0 * anim) as u8));
+                ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((180.0 * anim) as u8));
             });
 
         egui::Area::new(Id::new("exp_popup_area"))
-            .order(egui::Order::Foreground)
+            .order(egui::Order::Tooltip)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 20.0 * (1.0 - anim)])
             .show(ctx, |ui| {
                 ui.multiply_opacity(anim);
                 
                 egui::Frame::none()
                     .fill(BACKGROUND_COLOR)
-                    .rounding(Rounding::same(10.0))
-                    .inner_margin(Margin::same(20.0))
+                    .rounding(Rounding::same(15.0))
+                    .inner_margin(Margin::same(40.0))
                     .show(ui, |ui| {
                         ui.interact(ui.max_rect(), Id::new("exp_block"), Sense::click());
-                        ui.set_max_width(ctx.screen_rect().width() * 0.5);
-                        ui.set_max_height(ctx.screen_rect().height() * 0.8);
+                        ui.set_max_width(ctx.screen_rect().width() * 0.6);
+                        ui.set_max_height(ctx.screen_rect().height() * 0.85);
 
                         let category = self.app.get_category(&self.app.current_code).to_string();
                         let title = format!("{}: {}", category, self.app.current_code);
-                        ui.heading(egui::RichText::new(title).size(24.0).color(PRIMARY_TEXT_COLOR));
-                        ui.add_space(10.0);
+                        ui.heading(egui::RichText::new(title).size(30.0).color(PRIMARY_TEXT_COLOR).strong());
+                        ui.add_space(20.0);
 
                         egui::ScrollArea::vertical().show(ui, |ui| {
-                            ui.label(egui::RichText::new(&self.app.explanation_content).size(16.0).color(PRIMARY_TEXT_COLOR));
+                            ui.label(egui::RichText::new(&self.app.explanation_content).size(20.0).color(PRIMARY_TEXT_COLOR));
                         });
 
-                        ui.add_space(20.0);
+                        ui.add_space(30.0);
                         
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
-                        let btn = egui::Button::new(egui::RichText::new(close_str).color(Color32::WHITE).size(16.0))
-                            .fill(ACTION_BUTTON_COLOR).rounding(Rounding::same(5.0));
+                        let btn = egui::Button::new(egui::RichText::new(close_str).color(Color32::WHITE).size(20.0))
+                            .fill(ACTION_BUTTON_COLOR).rounding(Rounding::same(8.0));
                             
-                        if ui.add(btn).clicked() {
+                        if ui.add_sized([100.0, 45.0], btn).clicked() {
                             self.app.show_explanation = false;
                         }
                     });
@@ -395,13 +440,19 @@ impl<'a> UI<'a> {
         let code = self.app.current_code.clone();
         
         egui::CentralPanel::default().show(ctx, |ui| {
-            // BACK BUTTON
+            // BACK BUTTON (Clean Unicode)
             egui::Area::new(Id::new("back_button_area"))
                 .order(egui::Order::Foreground)
                 .anchor(egui::Align2::LEFT_TOP, [34.0, 34.0])
                 .show(ctx, |ui| {
-                    let btn = egui::Button::new(egui::RichText::new("←").size(24.0).color(PRIMARY_TEXT_COLOR))
-                        .fill(SECONDARY_BUTTON_BG).rounding(Rounding::same(10.0));
+                    let mut style = (*ctx.style()).clone();
+                    style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
+                    style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
+                    style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
+                    style.visuals.widgets.inactive.rounding = Rounding::same(10.0);
+                    ui.style_mut().visuals = style.visuals;
+
+                    let btn = egui::Button::new(egui::RichText::new("◀").size(24.0).color(PRIMARY_TEXT_COLOR));
                     if ui.add_sized([43.0, 43.0], btn).clicked() {
                         self.app.show_results = false;
                         self.app.current_file = None;
@@ -414,8 +465,14 @@ impl<'a> UI<'a> {
                 .order(egui::Order::Foreground)
                 .anchor(egui::Align2::RIGHT_TOP, [-34.0, 34.0])
                 .show(ctx, |ui| {
-                    let btn = egui::Button::new(egui::RichText::new("ℹ").size(24.0).color(PRIMARY_TEXT_COLOR))
-                        .fill(SECONDARY_BUTTON_BG).rounding(Rounding::same(10.0));
+                    let mut style = (*ctx.style()).clone();
+                    style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
+                    style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
+                    style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
+                    style.visuals.widgets.inactive.rounding = Rounding::same(10.0);
+                    ui.style_mut().visuals = style.visuals;
+
+                    let btn = egui::Button::new(egui::RichText::new("ⓘ").size(26.0).color(PRIMARY_TEXT_COLOR));
                     if ui.add_sized([43.0, 43.0], btn).clicked() {
                         self.app.show_explanation = true;
                     }
@@ -462,15 +519,22 @@ impl<'a> UI<'a> {
                                         .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
                                         .show(ctx, |ui| {
                                             ui.horizontal(|ui| {
+                                                let mut style = (*ctx.style()).clone();
+                                                style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
+                                                style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
+                                                style.visuals.widgets.inactive.rounding = Rounding::same(10.0);
+                                                style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
+                                                ui.style_mut().visuals = style;
+
                                                 if page > 0 {
-                                                    let btn = egui::Button::new(egui::RichText::new("←").size(24.0).color(Color32::BLACK)).fill(SECONDARY_BUTTON_BG).rounding(Rounding::same(10.0));
+                                                    let btn = egui::Button::new(egui::RichText::new("◀").size(24.0).color(Color32::BLACK));
                                                     if ui.add_sized([60.0, 60.0], btn).clicked() { prev_clicked = true; }
                                                 } else { ui.add_space(68.0); }
 
                                                 ui.add_space(30.0);
 
                                                 if page < pages.len() - 1 {
-                                                    let btn = egui::Button::new(egui::RichText::new("→").size(24.0).color(Color32::BLACK)).fill(SECONDARY_BUTTON_BG).rounding(Rounding::same(10.0));
+                                                    let btn = egui::Button::new(egui::RichText::new("▶").size(24.0).color(Color32::BLACK));
                                                     if ui.add_sized([60.0, 60.0], btn).clicked() { next_clicked = true; }
                                                 }
                                             });
@@ -530,7 +594,7 @@ impl<'a> UI<'a> {
                         .inner_margin(Margin::same(21.0))
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
-                                let icon = match popup.popup_type { PopupType::Error => "❌", PopupType::Success => "✅" };
+                                let icon = match popup.popup_type { PopupType::Error => "✖", PopupType::Success => "✔" };
                                 ui.label(egui::RichText::new(icon).size(24.0).color(Color32::WHITE));
                                 ui.add_space(15.0);
                                 ui.vertical(|ui| {
