@@ -1,36 +1,20 @@
 #!/bin/bash
-# Installation script for RADXA ZERO 3W
+# Installation script for RADXA ZERO 3W / Zorin OS
 
 set -e
 
-echo "=== Cube App Installer for RADXA ZERO 3W ==="
+echo "=== Cube App Installer ==="
 echo ""
-
-# Check if running on ARM
-ARCH=$(uname -m)
-if [[ "$ARCH" != "aarch64" && "$ARCH" != "armv7l" ]]; then
-    echo "Warning: Not running on ARM architecture. Detected: $ARCH"
-    read -p "Continue anyway? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
-fi
 
 echo "Installing system dependencies..."
 sudo apt update
 sudo apt install -y \
-    libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev \
-    libgstreamer-plugins-bad1.0-dev \
-    gstreamer1.0-plugins-base \
-    gstreamer1.0-plugins-good \
-    gstreamer1.0-plugins-bad \
-    gstreamer1.0-plugins-ugly \
-    gstreamer1.0-libav \
+    mpv \
+    poppler-utils \
     libasound2-dev \
     pkg-config \
-    build-essential
+    build-essential \
+    libgtk-3-dev
 
 echo ""
 echo "Checking for Rust installation..."
@@ -45,7 +29,7 @@ fi
 
 echo ""
 echo "Building Cube App..."
-./build.sh release
+cargo build --release
 
 echo ""
 echo "Creating desktop entry..."
@@ -64,9 +48,6 @@ EOF
 
 echo ""
 echo "=== Installation Complete! ==="
-echo ""
 echo "To run the app:"
 echo "  ./target/release/cube-app"
-echo ""
-echo "Or find it in your application menu as 'Cube App'"
 echo ""

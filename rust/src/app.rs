@@ -9,40 +9,39 @@ use crate::ui::UI;
 
 pub struct CubeApp {
     // Grid state
-    grid: [[u8; 5]; 5],
-    clicked_history: [Option<usize>; 5],
+    pub grid: [[u8; 5]; 5],
+    pub clicked_history: [Option<usize>; 5],
     
     // UI state
-    show_tutorial: bool,
-    show_results: bool,
-    show_options: bool,
-    show_history: bool,
-    show_explanation: bool,
-    is_loading: bool,
+    pub show_tutorial: bool,
+    pub show_results: bool,
+    pub show_options: bool,
+    pub show_history: bool,
+    pub show_explanation: bool,
+    pub is_loading: bool,
     
     // File handling
-    file_handler: FileHandler,
-    current_file: Option<FileContent>,
-    current_code: String,
-    content_folder: PathBuf,
+    pub file_handler: FileHandler,
+    pub current_file: Option<FileContent>,
+    pub current_code: String,
+    pub content_folder: PathBuf,
     
     // History
-    history: History,
+    pub history: History,
     
     // Settings
-    language: Language,
-    translations: Translations,
+    pub language: Language,
+    pub translations: Translations,
     
     // Popups
-    popups: Vec<Popup>,
+    pub popups: Vec<Popup>,
     
     // PDF viewer state
-    pdf_page: usize,
-    pdf_scale: f32,
+    pub pdf_page: usize,
     
     // Explanation
-    explanation_content: String,
-    categories: Vec<&'static str>,
+    pub explanation_content: String,
+    pub categories: Vec<&'static str>,
 }
 
 #[derive(Clone)]
@@ -81,7 +80,6 @@ impl CubeApp {
             translations: Translations::new(),
             popups: Vec::new(),
             pdf_page: 0,
-            pdf_scale: 1.0,
             explanation_content: String::new(),
             categories: vec![
                 "ACTIONS", "DREAMS", "SONGS", "EMOTIONS", "WALKS", "HEARTBEAT",
@@ -124,7 +122,7 @@ impl CubeApp {
         }
     }
 
-    pub fn scan_code(&mut self) {
+    pub fn scan_code(&mut self, ctx: &egui::Context) {
         let code_map = [
             ("11000", '0'),
             ("10100", '1'),
@@ -161,7 +159,7 @@ impl CubeApp {
             let file_path = self.content_folder.join(format!("{}.{}", decoded, ext));
             if file_path.exists() {
                 self.is_loading = true;
-                match self.file_handler.load_file(&file_path) {
+                match self.file_handler.load_file(ctx, &file_path) {
                     Ok(content) => {
                         self.current_file = Some(content);
                         self.show_results = true;
@@ -244,14 +242,14 @@ impl CubeApp {
         "UNKNOWN"
     }
 
-    pub fn open_history_project(&mut self, code: String) {
+    pub fn open_history_project(&mut self, ctx: &egui::Context, code: String) {
         let extensions = vec!["mp3", "mp4", "txt", "pdf", "jpg", "png", "html"];
         
         for ext in extensions {
             let file_path = self.content_folder.join(format!("{}.{}", code, ext));
             if file_path.exists() {
                 self.is_loading = true;
-                match self.file_handler.load_file(&file_path) {
+                match self.file_handler.load_file(ctx, &file_path) {
                     Ok(content) => {
                         self.current_file = Some(content);
                         self.current_code = code.clone();

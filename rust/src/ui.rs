@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, FontId, Pos2, Rect, Response, Sense, Vec2};
+use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2};
 use crate::app::{CubeApp, PopupType};
 use crate::translations::Translations;
 
@@ -13,7 +13,6 @@ impl<'a> UI<'a> {
     }
 
     pub fn render(&mut self, ctx: &egui::Context) {
-        // Render popups
         self.render_popups(ctx);
 
         if self.app.show_tutorial {
@@ -86,7 +85,7 @@ impl<'a> UI<'a> {
             ui.allocate_ui_at_rect(
                 Rect::from_min_size(Pos2::new(20.0, 20.0), Vec2::new(50.0, 50.0)),
                 |ui| {
-                    if ui.button("☰").clicked() {
+                    if ui.button(egui::RichText::new("☰").size(24.0)).clicked() {
                         self.app.show_options = !self.app.show_options;
                     }
                 },
@@ -139,7 +138,7 @@ impl<'a> UI<'a> {
                         .size(24.0)
                         .color(Color32::WHITE)
                 ).clicked() {
-                    self.app.scan_code();
+                    self.app.scan_code(ctx);
                 }
             });
         });
@@ -151,7 +150,7 @@ impl<'a> UI<'a> {
             ui.allocate_ui_at_rect(
                 Rect::from_min_size(Pos2::new(20.0, 20.0), Vec2::new(100.0, 40.0)),
                 |ui| {
-                    if ui.button("← Back").clicked() {
+                    if ui.button(egui::RichText::new("← Back").size(18.0)).clicked() {
                         self.app.show_results = false;
                         self.app.current_file = None;
                         self.app.pdf_page = 0;
@@ -163,7 +162,7 @@ impl<'a> UI<'a> {
             ui.allocate_ui_at_rect(
                 Rect::from_min_size(Pos2::new(130.0, 20.0), Vec2::new(40.0, 40.0)),
                 |ui| {
-                    if ui.button("ℹ").clicked() {
+                    if ui.button(egui::RichText::new("ℹ").size(18.0)).clicked() {
                         self.app.load_explanation(&self.app.current_code.clone());
                     }
                 },
@@ -174,7 +173,7 @@ impl<'a> UI<'a> {
                 if self.app.is_loading {
                     ui.add_space(300.0);
                     ui.spinner();
-                    ui.label("Loading...");
+                    ui.label(egui::RichText::new("Loading...").size(24.0));
                 } else if let Some(ref content) = self.app.current_file {
                     self.render_file_content(ui, content);
                 } else {
@@ -191,23 +190,32 @@ impl<'a> UI<'a> {
             FileContent::Text(text) => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.add_space(80.0);
-                    ui.label(egui::RichText::new(text).size(16.0));
+                    ui.label(egui::RichText::new(text).size(20.0));
                 });
             }
             FileContent::Image(texture) => {
-                ui.add_space(50.0);
-                ui.image(texture);
+                ui.add_space(70.0);
+                let avail = ui.available_size() - egui::vec2(20.0, 20.0);
+                ui.add(
+                    egui::Image::new(texture)
+                        .max_width(avail.x)
+                        .max_height(avail.y)
+                );
             }
             FileContent::Pdf { pages, .. } => {
                 if !pages.is_empty() {
-                    ui.add_space(50.0);
+                    ui.add_space(70.0);
                     
                     if let Some(texture) = pages.get(self.app.pdf_page) {
-                        ui.image(texture);
+                        let avail = ui.available_size() - egui::vec2(0.0, 60.0); 
+                        ui.add(
+                            egui::Image::new(texture)
+                                .max_width(avail.x)
+                                .max_height(avail.y)
+                        );
                     }
 
-                    ui.add_space(20.0);
-
+                    ui.add_space(10.0);
                     ui.horizontal(|ui| {
                         if self.app.pdf_page > 0 {
                             if ui.button("← Previous").clicked() {
@@ -227,18 +235,18 @@ impl<'a> UI<'a> {
             }
             FileContent::Audio(_) => {
                 ui.add_space(300.0);
-                ui.label("🎵 Audio playing...");
-                ui.label("(Audio playback is active in background)");
+                ui.heading("🎵 Audio playing...");
+                ui.label("(Audio playback continues in background until you go back)");
             }
             FileContent::Video => {
                 ui.add_space(300.0);
-                ui.label("🎬 Video Player");
-                ui.label("(Video playback requires external player)");
+                ui.heading("🎬 Video Player opened");
+                ui.label("(Video playback launched in external 'mpv' window)");
             }
             FileContent::Html(html) => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.add_space(80.0);
-                    ui.label("HTML Content:");
+                    ui.label(egui::RichText::new("HTML Content:").strong().size(20.0));
                     ui.separator();
                     ui.label(html);
                 });
@@ -272,7 +280,6 @@ impl<'a> UI<'a> {
                 }
             });
 
-        // Click outside to close
         let response = ctx.input(|i| i.pointer.any_click());
         if response && !ctx.wants_pointer_input() {
             self.app.show_options = false;
@@ -297,7 +304,7 @@ impl<'a> UI<'a> {
                             ui.horizontal(|ui| {
                                 let code = item.code.clone();
                                 if ui.button(&item.code).clicked() {
-                                    self.app.open_history_project(code);
+                                    self.app.open_history_project(ctx, code);
                                 }
                                 ui.label(format!(" - {}", item.timestamp.format("%H:%M:%S")));
                             });
@@ -328,7 +335,7 @@ impl<'a> UI<'a> {
             .fixed_size([600.0, 400.0])
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.label(&self.app.explanation_content);
+                    ui.label(egui::RichText::new(&self.app.explanation_content).size(18.0));
                 });
 
                 ui.add_space(10.0);

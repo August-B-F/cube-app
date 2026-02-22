@@ -6,50 +6,43 @@ A high-performance Rust rewrite of the Cube App using egui for the RADXA ZERO 3W
 
 - **Native Performance**: Compiled Rust with zero runtime overhead
 - **Low Memory Footprint**: Optimized for 4GB RAM devices
-- **Cross-Platform**: Works on Linux (ARM/x86), Windows, and macOS
-- **Multimedia Support**: PDF, images, audio (MP3), video (MP4), text, and HTML
+- **Multimedia Support**:
+  - Image viewing via `image` crate and native egui rendering
+  - Fast PDF parsing via `pdftoppm` (poppler-utils)
+  - Audio (MP3) playback natively via `rodio`
+  - Video (MP4) playback launched via the highly optimized `mpv` player 
 - **Bilingual**: English and Italian interface
 - **History Tracking**: Persistent history with JSON storage
-- **Fullscreen Mode**: Immersive exhibition experience
 
 ## Prerequisites
 
-### For RADXA ZERO 3W (ARM64 Linux)
+### For Zorin OS (Debian/Ubuntu) or RADXA ZERO 3W
+
+The app relies on a few solid system binaries for extremely efficient media handling (instead of bloated Rust C-bindings).
 
 ```bash
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
-# Install system dependencies
+# Install critical system tools for media rendering
 sudo apt update
-sudo apt install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-    libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base \
-    gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
-    gstreamer1.0-plugins-ugly gstreamer1.0-libav \
-    libasound2-dev pkg-config
+sudo apt install -y \
+    mpv \
+    poppler-utils \
+    libasound2-dev \
+    pkg-config \
+    build-essential \
+    libgtk-3-dev
 ```
 
-### For Development (Any Platform)
-
-```bash
-# Install Rust (if not already installed)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Linux additional dependencies
-sudo apt install libgtk-3-dev libglib2.0-dev libasound2-dev
-
-# macOS (requires Homebrew)
-brew install gtk+3 gstreamer gst-plugins-base gst-plugins-good
-```
-
-## Building
+## Building & Running
 
 ### Development Build
 
 ```bash
 cd rust
-cargo build
+cargo run
 ```
 
 ### Optimized Release Build
@@ -57,111 +50,24 @@ cargo build
 ```bash
 cd rust
 cargo build --release
-```
-
-The release binary will be at `target/release/cube-app`
-
-### Cross-Compilation for RADXA ZERO 3W
-
-From a development machine:
-
-```bash
-# Add ARM64 target
-rustup target add aarch64-unknown-linux-gnu
-
-# Install cross-compiler
-sudo apt install gcc-aarch64-linux-gnu
-
-# Build
-cargo build --release --target aarch64-unknown-linux-gnu
-```
-
-## Running
-
-```bash
-cd rust
-
-# Development
-cargo run
-
-# Release
 ./target/release/cube-app
 ```
 
 ## Configuration
 
-### Content Folder
-
 By default, the app loads projects from `/home/user/`. To change this, edit `src/app.rs`:
 
 ```rust
-let content_folder = PathBuf::from("/your/custom/path/");
+let content_folder = PathBuf::from("/home/yourusername/");
 ```
-
-### Fullscreen
-
-The app starts in fullscreen by default. To disable, edit `src/main.rs`:
-
-```rust
-.with_fullscreen(false)
-```
-
-## Project Structure
-
-```
-rust/
-├── Cargo.toml           # Dependencies and build config
-├── src/
-│   ├── main.rs          # Entry point
-│   ├── app.rs           # Core application logic
-│   ├── ui.rs            # UI rendering with egui
-│   ├── file_handler.rs  # File loading and media handling
-│   ├── history.rs       # History management
-│   └── translations.rs  # i18n support
-└── README.md
-```
-
-## Performance Notes
-
-- **Startup Time**: <1 second on RADXA ZERO 3W
-- **Memory Usage**: ~50-100MB (vs 200-300MB for Electron)
-- **Binary Size**: ~15MB (vs 100MB+ for Electron)
-- **CPU Usage**: Minimal, hardware-accelerated rendering
-
-## Keyboard Shortcuts
-
-- `ESC`: Close current view/popup
-- `Space`: Trigger scan (when grid is active)
-- `Left/Right Arrow`: Navigate PDF pages
 
 ## Troubleshooting
 
+### PDF gives an error
+Make sure `poppler-utils` is installed. The app calls `pdftoppm` under the hood to quickly convert PDF pages to high-quality images.
+
+### Video gives an error
+Make sure `mpv` is installed. The app launches `mpv --fs` for lightweight, hardware-accelerated video playback.
+
 ### Audio not working
-
-Ensure ALSA is configured:
-```bash
-sudo apt install alsa-utils
-aplay -l  # List audio devices
-```
-
-### Video playback issues
-
-Install additional GStreamer plugins:
-```bash
-sudo apt install gstreamer1.0-plugins-ugly gstreamer1.0-libav
-```
-
-### Build errors on ARM
-
-Make sure PKG_CONFIG_PATH is set:
-```bash
-export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
-```
-
-## License
-
-Educational and non-commercial use only. Attribution to Alberto Frigo required.
-
-## Contact
-
-august.frigo@gmail.com
+Ensure ALSA is configured. Install `alsa-utils` if missing.
