@@ -8,11 +8,9 @@ use crate::translations::{Language, Translations};
 use crate::ui::UI;
 
 pub struct CubeApp {
-    // Grid state
     pub grid: [[u8; 5]; 5],
     pub clicked_history: [Option<usize>; 5],
     
-    // UI state
     pub show_tutorial: bool,
     pub show_results: bool,
     pub show_options: bool,
@@ -20,31 +18,24 @@ pub struct CubeApp {
     pub show_explanation: bool,
     pub is_loading: bool,
     
-    // File handling
     pub file_handler: FileHandler,
     pub current_file: Option<FileContent>,
     pub current_code: String,
     pub content_folder: PathBuf,
     
-    // History
     pub history: History,
-    
-    // Settings
     pub language: Language,
     pub translations: Translations,
     
-    // Popups
     pub popups: Vec<Popup>,
-    
-    // PDF viewer state
     pub pdf_page: usize,
     
-    // Explanation
     pub explanation_content: String,
     pub categories: Vec<&'static str>,
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct Popup {
     pub id: u64,
     pub message: String,
@@ -53,6 +44,7 @@ pub struct Popup {
 }
 
 #[derive(Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum PopupType {
     Error,
     Success,
@@ -103,16 +95,13 @@ impl CubeApp {
         let last_clicked = self.clicked_history[row];
 
         if self.grid[row][col] == 1 {
-            // Deactivate if already active
             self.grid[row][col] = 0;
             self.clicked_history[row] = None;
         } else {
             if active_indices.len() < 2 {
-                // Activate new cell
                 self.grid[row][col] = 1;
                 self.clicked_history[row] = Some(col);
             } else {
-                // Replace the cell that wasn't clicked last
                 if let Some(to_deactivate) = active_indices.iter().find(|&&i| Some(i) != last_clicked) {
                     self.grid[row][*to_deactivate] = 0;
                 }
@@ -151,7 +140,6 @@ impl CubeApp {
 
         self.current_code = decoded.clone();
 
-        // Search for file
         let extensions = vec!["mp3", "mp4", "txt", "pdf", "jpg", "png", "html"];
         let mut found = false;
 
@@ -165,14 +153,12 @@ impl CubeApp {
                         self.show_results = true;
                         self.is_loading = false;
                         
-                        // Add to history
                         self.history.add_item(HistoryItem {
                             code: decoded.clone(),
                             timestamp: chrono::Local::now(),
                             result: "Found".to_string(),
                         });
                         
-                        // Reset grid
                         self.grid = [[0; 5]; 5];
                         self.clicked_history = [None; 5];
                         found = true;
@@ -209,7 +195,7 @@ impl CubeApp {
         let now = SystemTime::now();
         self.popups.retain(|popup| {
             now.duration_since(popup.created_at)
-                .map(|d| d.as_secs() < 3)
+                .map(|d| d.as_secs_f32() < 3.0)
                 .unwrap_or(false)
         });
     }
@@ -274,7 +260,11 @@ impl eframe::App for CubeApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.update_popups();
         
-        // Pass references directly to UI avoiding double-borrow on `self`
+        // This stops the UI from freezing when an animation or popup is active!
+        if !self.popups.is_empty() || self.is_loading {
+            ctx.request_repaint();
+        }
+        
         let mut ui_renderer = UI::new(self);
         ui_renderer.render(ctx);
     }
