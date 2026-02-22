@@ -119,11 +119,11 @@ impl FileHandler {
                 Ok(FileContent::Video)
             }
             "mp3" => {
-                if let Some(stream) = &self.audio_player {
+                if let Some(_stream) = &self.audio_player {
                     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
                     let decoder = rodio::Decoder::new(std::io::BufReader::new(file)).map_err(|e| e.to_string())?;
                     
-                    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+                    let (_stream_tmp, handle) = rodio::OutputStream::try_default().unwrap();
                     let sink = rodio::Sink::try_new(&handle).unwrap();
                     sink.append(decoder);
                     sink.play();

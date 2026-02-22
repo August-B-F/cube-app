@@ -74,7 +74,7 @@ impl<'a> UI<'a> {
                     style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
                     style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(20);
                     style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
-                    ui.style_mut().visuals = style;
+                    ui.style_mut().visuals = style.visuals;
 
                     let btn = egui::Button::new(egui::RichText::new("☰").size(40.0).color(BUTTON_COLOR))
                         .frame(true);
@@ -213,7 +213,7 @@ impl<'a> UI<'a> {
                                 style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
                                 style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(20);
                                 style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
-                                ui.style_mut().visuals = style;
+                                ui.style_mut().visuals = style.visuals;
 
                                 let btn = egui::Button::new(egui::RichText::new(next).size(22.0).color(ACTION_BUTTON_COLOR)).frame(true);
                                 if ui.add_sized([100.0, 45.0], btn).clicked() { self.app.show_tutorial = false; }
@@ -235,7 +235,7 @@ impl<'a> UI<'a> {
             .fixed_pos(Pos2::ZERO)
             .show(ctx, |ui| {
                 let response = ui.allocate_response(ctx.screen_rect().size(), Sense::click());
-                if response.clicked() { self.app.show_options = false; }
+                if response.clicked() { self.app.show_options = false; } // Close on click outside
                 ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha((120.0 * anim) as u8));
             });
 
@@ -266,7 +266,7 @@ impl<'a> UI<'a> {
                                 style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
                                 style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(20);
                                 style.visuals.widgets.hovered.rounding = Rounding::same(20.0);
-                                ui.style_mut().visuals = style;
+                                ui.style_mut().visuals = style.visuals;
 
                                 if ui.add_sized([40.0, 40.0], egui::Button::new(egui::RichText::new("✖").size(24.0).color(PRIMARY_TEXT_COLOR))).clicked() {
                                     self.app.show_options = false;
@@ -283,7 +283,7 @@ impl<'a> UI<'a> {
                             style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
                             style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
                             style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
-                            ui.style_mut().visuals = style;
+                            ui.style_mut().visuals = style.visuals;
 
                             let btn_style = |text: String| {
                                 egui::Button::new(egui::RichText::new(text).size(24.0).color(PRIMARY_TEXT_COLOR))
@@ -353,7 +353,7 @@ impl<'a> UI<'a> {
                                         style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
                                         style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
                                         style.visuals.widgets.hovered.rounding = Rounding::same(8.0);
-                                        ui.style_mut().visuals = style;
+                                        ui.style_mut().visuals = style.visuals;
 
                                         let btn = egui::Button::new(egui::RichText::new(&item.code).size(22.0).color(PRIMARY_TEXT_COLOR)).frame(true);
                                         if ui.add(btn).clicked() {
@@ -524,7 +524,7 @@ impl<'a> UI<'a> {
                                                 style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
                                                 style.visuals.widgets.inactive.rounding = Rounding::same(10.0);
                                                 style.visuals.widgets.hovered.rounding = Rounding::same(10.0);
-                                                ui.style_mut().visuals = style;
+                                                ui.style_mut().visuals = style.visuals;
 
                                                 if page > 0 {
                                                     let btn = egui::Button::new(egui::RichText::new("◀").size(24.0).color(Color32::BLACK));
