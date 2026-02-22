@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2, Rounding, Stroke, Margin};
+use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2, Rounding, Stroke, Margin, Id};
 use crate::app::{CubeApp, PopupType};
 
 // CSS Var equivalents
@@ -8,11 +8,6 @@ const BUTTON_COLOR: Color32 = Color32::from_rgb(29, 27, 32); // #1D1B20
 const PRIMARY_TEXT_COLOR: Color32 = Color32::from_rgb(29, 27, 32); // #1D1B20
 const SECONDARY_TEXT_COLOR: Color32 = Color32::from_rgb(73, 69, 79); // #49454F
 const SECONDARY_BUTTON_BG: Color32 = Color32::from_rgb(218, 207, 216); // #DACFD8
-
-const DARK_BACKGROUND_COLOR: Color32 = Color32::from_rgb(26, 26, 26); // #1a1a1a
-const DARK_ACTION_BUTTON_COLOR: Color32 = Color32::from_rgb(143, 132, 198); // #8f84c6
-const DARK_BUTTON_COLOR: Color32 = Color32::from_rgb(224, 224, 224); // #e0e0e0
-const DARK_PRIMARY_TEXT_COLOR: Color32 = Color32::from_rgb(224, 224, 224); // #e0e0e0
 
 pub struct UI<'a> {
     app: &'a mut CubeApp,
@@ -85,7 +80,7 @@ impl<'a> UI<'a> {
         let next = self.app.translations.get("next", self.app.language).to_string();
 
         // Tutorial container background (blur simulation)
-        egui::Area::new("tutorial_bg")
+        egui::Area::new(Id::new("tutorial_bg"))
             .fixed_pos(Pos2::ZERO)
             .show(ctx, |ui| {
                 let rect = Rect::from_min_size(Pos2::ZERO, ctx.screen_rect().size());
@@ -226,8 +221,6 @@ impl<'a> UI<'a> {
                 if response.clicked() {
                     self.app.scan_code(ctx);
                 }
-
-                let is_hovered = response.hovered();
                 
                 // Border 5px solid button-color, transparent bg
                 ui.painter().rect_stroke(
@@ -396,7 +389,7 @@ impl<'a> UI<'a> {
         let lang_str = self.app.translations.get("language", self.app.language).to_string();
 
         // Options bg overlay (.options-container)
-        egui::Area::new("options_bg")
+        egui::Area::new(Id::new("options_bg"))
             .fixed_pos(Pos2::ZERO)
             .show(ctx, |ui| {
                 let rect = Rect::from_min_size(Pos2::ZERO, ctx.screen_rect().size());
@@ -470,7 +463,7 @@ impl<'a> UI<'a> {
         let close_str = self.app.translations.get("close", self.app.language).to_string();
         
         // bg blur
-        egui::Area::new("history_bg").fixed_pos(Pos2::ZERO).show(ctx, |ui| {
+        egui::Area::new(Id::new("history_bg")).fixed_pos(Pos2::ZERO).show(ctx, |ui| {
             ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha(50));
         });
 
@@ -502,7 +495,7 @@ impl<'a> UI<'a> {
                                 
                                 let mut style = (*ctx.style()).clone();
                                 style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-                                ui.style_mut().visuals = style;
+                                ui.style_mut().visuals = style.visuals;
                                 
                                 if ui.button(egui::RichText::new(&item.code).strong().color(PRIMARY_TEXT_COLOR)).clicked() {
                                     project_to_open = Some(code);
@@ -528,7 +521,7 @@ impl<'a> UI<'a> {
                 let mut style = (*ctx.style()).clone();
                 style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
                 style.visuals.widgets.inactive.rounding = Rounding::same(5.0);
-                ui.style_mut().visuals = style;
+                ui.style_mut().visuals = style.visuals;
 
                 if ui.button(egui::RichText::new(close_str).color(Color32::WHITE).size(16.0)).clicked() {
                     close_clicked = true;
@@ -555,7 +548,7 @@ impl<'a> UI<'a> {
         let close_str = self.app.translations.get("close", self.app.language).to_string();
         
         // bg blur
-        egui::Area::new("exp_bg").fixed_pos(Pos2::ZERO).show(ctx, |ui| {
+        egui::Area::new(Id::new("exp_bg")).fixed_pos(Pos2::ZERO).show(ctx, |ui| {
             ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::from_black_alpha(128));
         });
 
@@ -585,7 +578,7 @@ impl<'a> UI<'a> {
                 let mut style = (*ctx.style()).clone();
                 style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
                 style.visuals.widgets.inactive.rounding = Rounding::same(5.0);
-                ui.style_mut().visuals = style;
+                ui.style_mut().visuals = style.visuals;
 
                 if ui.button(egui::RichText::new(close_str).color(Color32::WHITE).size(16.0)).clicked() {
                     close_clicked = true;
@@ -617,7 +610,9 @@ impl<'a> UI<'a> {
                     rounding: Rounding::same(10.0),
                     fill: bg_color,
                     shadow: egui::epaint::Shadow {
-                        extrusion: 12.0,
+                        offset: Vec2::new(0.0, 4.0), // Maps to CSS box-shadow: 0 4px 12px rgba...
+                        blur: 12.0,
+                        spread: 0.0,
                         color: Color32::from_black_alpha(38), // 0.15 opacity
                     },
                     ..Default::default()
