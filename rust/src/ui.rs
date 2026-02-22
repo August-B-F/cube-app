@@ -38,38 +38,37 @@ impl<'a> UI<'a> {
     }
 
     fn render_tutorial(&mut self, ctx: &egui::Context) {
+        let welcome = self.app.translations.get("welcome", self.app.language).to_string();
+        let tutorial = self.app.translations.get("tutorial", self.app.language).to_string();
+        let skip = self.app.translations.get("skip", self.app.language).to_string();
+        let next = self.app.translations.get("next", self.app.language).to_string();
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical_centered(|ui| {
                 ui.add_space(200.0);
                 
                 ui.heading(
-                    egui::RichText::new(self.app.translations.get("welcome", self.app.language))
+                    egui::RichText::new(welcome)
                         .size(40.0)
                 );
                 
                 ui.add_space(30.0);
                 
                 ui.label(
-                    egui::RichText::new(self.app.translations.get("tutorial", self.app.language))
+                    egui::RichText::new(tutorial)
                         .size(20.0)
                 );
                 
                 ui.add_space(50.0);
                 
                 ui.horizontal(|ui| {
-                    if ui.button(
-                        egui::RichText::new(self.app.translations.get("skip", self.app.language))
-                            .size(18.0)
-                    ).clicked() {
+                    if ui.button(egui::RichText::new(skip).size(18.0)).clicked() {
                         self.app.show_tutorial = false;
                     }
                     
                     ui.add_space(20.0);
                     
-                    if ui.button(
-                        egui::RichText::new(self.app.translations.get("next", self.app.language))
-                            .size(18.0)
-                    ).clicked() {
+                    if ui.button(egui::RichText::new(next).size(18.0)).clicked() {
                         self.app.show_tutorial = false;
                     }
                 });
@@ -78,6 +77,8 @@ impl<'a> UI<'a> {
     }
 
     fn render_grid(&mut self, ctx: &egui::Context) {
+        let scan_text = self.app.translations.get("scan", self.app.language).to_string();
+
         egui::CentralPanel::default().show(ctx, |ui| {
             // Options button (top-left)
             let rect = Rect::from_min_size(Pos2::new(20.0, 20.0), Vec2::new(50.0, 50.0));
@@ -128,9 +129,8 @@ impl<'a> UI<'a> {
                 ui.add_space(50.0);
 
                 // Scan button
-                let button_text = self.app.translations.get("scan", self.app.language).to_string();
                 if ui.button(
-                    egui::RichText::new(button_text)
+                    egui::RichText::new(scan_text)
                         .size(24.0)
                         .color(Color32::WHITE)
                 ).clicked() {
@@ -141,6 +141,8 @@ impl<'a> UI<'a> {
     }
 
     fn render_results(&mut self, ctx: &egui::Context) {
+        let code = self.app.current_code.clone();
+        
         egui::CentralPanel::default().show(ctx, |ui| {
             // Back button
             let back_rect = Rect::from_min_size(Pos2::new(20.0, 20.0), Vec2::new(100.0, 40.0));
@@ -156,7 +158,6 @@ impl<'a> UI<'a> {
             let info_rect = Rect::from_min_size(Pos2::new(130.0, 20.0), Vec2::new(40.0, 40.0));
             ui.allocate_new_ui(egui::UiBuilder::new().max_rect(info_rect), |ui| {
                 if ui.button(egui::RichText::new("ℹ").size(18.0)).clicked() {
-                    let code = self.app.current_code.clone();
                     self.app.load_explanation(&code);
                 }
             });
@@ -168,8 +169,9 @@ impl<'a> UI<'a> {
                     ui.spinner();
                     ui.label(egui::RichText::new("Loading...").size(24.0));
                 } else {
-                    // Extract values to avoid borrow checker errors
                     let page = self.app.pdf_page;
+                    let mut prev_clicked = false;
+                    let mut next_clicked = false;
                     
                     if let Some(content) = &self.app.current_file {
                         use crate::file_handler::FileContent;
@@ -207,7 +209,7 @@ impl<'a> UI<'a> {
                                     ui.horizontal(|ui| {
                                         if page > 0 {
                                             if ui.button("← Previous").clicked() {
-                                                self.app.pdf_page -= 1;
+                                                prev_clicked = true;
                                             }
                                         }
 
@@ -215,7 +217,7 @@ impl<'a> UI<'a> {
 
                                         if page < pages.len() - 1 {
                                             if ui.button("Next →").clicked() {
-                                                self.app.pdf_page += 1;
+                                                next_clicked = true;
                                             }
                                         }
                                     });
@@ -243,36 +245,62 @@ impl<'a> UI<'a> {
                     } else {
                         ui.label("No content to display");
                     }
+                    
+                    if prev_clicked {
+                        self.app.pdf_page -= 1;
+                    }
+                    if next_clicked {
+                        self.app.pdf_page += 1;
+                    }
                 }
             });
         });
     }
 
     fn render_options(&mut self, ctx: &egui::Context) {
+        let mut show_history = false;
+        let mut show_tutorial = false;
+        let mut toggle_lang = false;
+        
+        let history_str = self.app.translations.get("history", self.app.language).to_string();
+        let help_str = self.app.translations.get("help", self.app.language).to_string();
+        let lang_str = self.app.translations.get("language", self.app.language).to_string();
+
         egui::Window::new("")
             .title_bar(false)
             .anchor(egui::Align2::LEFT_TOP, [80.0, 20.0])
             .fixed_size([200.0, 300.0])
             .show(ctx, |ui| {
-                if ui.button(format!("📜 {}", self.app.translations.get("history", self.app.language))).clicked() {
-                    self.app.show_history = true;
-                    self.app.show_options = false;
+                if ui.button(format!("📜 {}", history_str)).clicked() {
+                    show_history = true;
                 }
 
-                if ui.button(format!("❓ {}", self.app.translations.get("help", self.app.language))).clicked() {
-                    self.app.show_tutorial = true;
-                    self.app.show_options = false;
+                if ui.button(format!("❓ {}", help_str)).clicked() {
+                    show_tutorial = true;
                 }
 
-                let lang_text = self.app.translations.get("language", self.app.language).to_string();
-                if ui.button(format!("🌐 {}", lang_text)).clicked() {
-                    use crate::translations::Language;
-                    self.app.language = match self.app.language {
-                        Language::English => Language::Italian,
-                        Language::Italian => Language::English,
-                    };
+                if ui.button(format!("🌐 {}", lang_str)).clicked() {
+                    toggle_lang = true;
                 }
             });
+
+        if show_history {
+            self.app.show_history = true;
+            self.app.show_options = false;
+        }
+        
+        if show_tutorial {
+            self.app.show_tutorial = true;
+            self.app.show_options = false;
+        }
+        
+        if toggle_lang {
+            use crate::translations::Language;
+            self.app.language = match self.app.language {
+                Language::English => Language::Italian,
+                Language::Italian => Language::English,
+            };
+        }
 
         let response = ctx.input(|i| i.pointer.any_click());
         if response && !ctx.wants_pointer_input() {
@@ -283,8 +311,13 @@ impl<'a> UI<'a> {
     fn render_history(&mut self, ctx: &egui::Context) {
         let mut open = self.app.show_history;
         let mut project_to_open = None;
+        let mut close_clicked = false;
         
-        egui::Window::new(self.app.translations.get("history", self.app.language).to_string())
+        let history_title = self.app.translations.get("history", self.app.language).to_string();
+        let empty_str = self.app.translations.get("historyEmpty", self.app.language).to_string();
+        let close_str = self.app.translations.get("close", self.app.language).to_string();
+        
+        egui::Window::new(&history_title)
             .open(&mut open)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .fixed_size([400.0, 500.0])
@@ -293,7 +326,7 @@ impl<'a> UI<'a> {
                     let items = self.app.history.get_items();
                     
                     if items.is_empty() {
-                        ui.label(self.app.translations.get("historyEmpty", self.app.language));
+                        ui.label(empty_str);
                     } else {
                         for item in items {
                             ui.horizontal(|ui| {
@@ -310,25 +343,31 @@ impl<'a> UI<'a> {
 
                 ui.add_space(10.0);
                 
-                if ui.button(self.app.translations.get("close", self.app.language)).clicked() {
-                    open = false;
+                if ui.button(close_str).clicked() {
+                    close_clicked = true;
                 }
             });
+
+        if close_clicked {
+            self.app.show_history = false;
+        } else {
+            self.app.show_history = open;
+        }
 
         if let Some(code) = project_to_open {
             self.app.open_history_project(ctx, code);
         }
-
-        self.app.show_history = open;
     }
 
     fn render_explanation(&mut self, ctx: &egui::Context) {
         let mut open = self.app.show_explanation;
+        let mut close_clicked = false;
         
         let category = self.app.get_category(&self.app.current_code).to_string();
         let title = format!("{}: {}", category, self.app.current_code);
+        let close_str = self.app.translations.get("close", self.app.language).to_string();
         
-        egui::Window::new(title)
+        egui::Window::new(&title)
             .open(&mut open)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .fixed_size([600.0, 400.0])
@@ -339,12 +378,16 @@ impl<'a> UI<'a> {
 
                 ui.add_space(10.0);
                 
-                if ui.button(self.app.translations.get("close", self.app.language)).clicked() {
-                    open = false;
+                if ui.button(close_str).clicked() {
+                    close_clicked = true;
                 }
             });
 
-        self.app.show_explanation = open;
+        if close_clicked {
+            self.app.show_explanation = false;
+        } else {
+            self.app.show_explanation = open;
+        }
     }
 
     fn render_popups(&self, ctx: &egui::Context) {
