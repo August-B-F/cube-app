@@ -531,8 +531,9 @@ impl<'a> UI<'a> {
                             FileContent::Image(tex) => {
                                 ui.add_space(80.0);
                                 let a = ui.available_size() - Vec2::new(20.0, 20.0);
-                                // FIX: dereference the mut borrow to an immutable borrow
-                                ui.add(egui::Image::new(&*tex).max_width(a.x).max_height(a.y));
+                                // FIX: pass a cloned handle which derefs correctly
+                                let handle = tex.clone();
+                                ui.add(egui::Image::new(&handle).max_width(a.x).max_height(a.y));
                             }
                             
                             // ---- FULL PDF VIEWER ----
@@ -577,8 +578,9 @@ impl<'a> UI<'a> {
                                             let mut display_height = (ctx.screen_rect().height() - 200.0) * self.app.pdf_zoom;
                                             let mut display_width = display_height * aspect;
                                             
-                                            // FIX: dereference the mut borrow to an immutable borrow
-                                            ui.add(egui::Image::new(&*tex).fit_to_exact_size(egui::vec2(display_width, display_height)));
+                                            // FIX: pass a cloned handle
+                                            let handle = tex.clone();
+                                            ui.add(egui::Image::new(&handle).fit_to_exact_size(egui::vec2(display_width, display_height)));
                                         }
                                     });
 
