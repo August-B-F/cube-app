@@ -55,7 +55,7 @@ pub enum PopupType {
 
 impl CubeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let content_folder = PathBuf::from("/home/user/");
+        let content_folder = PathBuf::from("/media/arte/2004-2040");
 
         Self {
             grid: [[0; 5]; 5],
