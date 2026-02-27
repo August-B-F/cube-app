@@ -30,6 +30,7 @@ pub struct CubeApp {
 
     pub popups: Vec<Popup>,
     pub pdf_page: usize,
+    pub pdf_zoom: f32,
 
     pub explanation_content: String,
     pub categories: Vec<&'static str>,
@@ -75,6 +76,7 @@ impl CubeApp {
             translations: Translations::new(),
             popups: Vec::new(),
             pdf_page: 0,
+            pdf_zoom: 1.0,
             explanation_content: String::new(),
             categories: vec![
                 "ACTIONS", "DREAMS", "SONGS", "EMOTIONS", "WALKS", "HEARTBEAT",
@@ -134,10 +136,14 @@ impl CubeApp {
             let file_path = self.content_folder.join(format!("{}.{}", decoded, ext));
             if file_path.exists() {
                 self.is_loading = true;
+                ctx.request_repaint(); // Show loading spinner
+                
                 match self.file_handler.load_file(ctx, &file_path) {
                     Ok(content) => {
                         self.current_file = Some(content);
                         self.show_results = true;
+                        self.pdf_page = 0;
+                        self.pdf_zoom = 1.0;
                         self.is_loading = false;
                         self.history.add_item(HistoryItem {
                             code: decoded.clone(),
@@ -204,12 +210,16 @@ impl CubeApp {
             let file_path = self.content_folder.join(format!("{}.{}", code, ext));
             if file_path.exists() {
                 self.is_loading = true;
+                ctx.request_repaint();
+
                 match self.file_handler.load_file(ctx, &file_path) {
                     Ok(content) => {
                         self.current_file = Some(content);
                         self.current_code = code;
                         self.show_results = true;
                         self.show_history = false;
+                        self.pdf_page = 0;
+                        self.pdf_zoom = 1.0;
                         self.is_loading = false;
                         return;
                     }

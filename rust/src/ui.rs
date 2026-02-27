@@ -391,9 +391,14 @@ impl<'a> UI<'a> {
 
                         ui.add_space(30.0);
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
+                        let mut style = (*ctx.style()).clone();
+                        style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
+                        style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                        ui.style_mut().visuals = style.visuals;
+                        
                         let close_btn = egui::Button::new(
                             egui::RichText::new(&close_str).size(22.0).color(Color32::WHITE)
-                        ).fill(ACTION_BUTTON_COLOR).rounding(Rounding::same(10.0));
+                        ).rounding(Rounding::same(10.0));
                         if ui.add_sized([120.0, 52.0], close_btn).clicked() {
                             self.app.show_history = false;
                         }
@@ -447,9 +452,14 @@ impl<'a> UI<'a> {
                         });
                         ui.add_space(30.0);
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
+                        let mut style = (*ctx.style()).clone();
+                        style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
+                        style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                        ui.style_mut().visuals = style.visuals;
+
                         let close_btn = egui::Button::new(
                             egui::RichText::new(&close_str).size(22.0).color(Color32::WHITE)
-                        ).fill(ACTION_BUTTON_COLOR).rounding(Rounding::same(10.0));
+                        ).rounding(Rounding::same(10.0));
                         if ui.add_sized([120.0, 52.0], close_btn).clicked() {
                             self.app.show_explanation = false;
                         }
@@ -465,11 +475,24 @@ impl<'a> UI<'a> {
         let cr_tex   = self.app.icons.chevron_right.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            
+            // --- TOP NAVIGATION ---
             egui::Area::new(Id::new("back_area"))
                 .order(egui::Order::Foreground)
                 .anchor(egui::Align2::LEFT_TOP, [34.0, 34.0])
                 .show(ctx, |ui| {
                     if Self::icon_btn(ui, &back_tex, 56.0, SECONDARY_BUTTON_BG, 12.0) {
+                        use crate::file_handler::FileContent;
+                        // Cleanly stop any running media when going back
+                        if let Some(FileContent::Video(child_arc)) = &self.app.current_file {
+                            if let Ok(mut child) = child_arc.lock() {
+                                let _ = child.kill();
+                                let _ = child.wait();
+                            }
+                        } else if let Some(FileContent::Audio { sink, .. }) = &self.app.current_file {
+                            sink.stop();
+                        }
+
                         self.app.show_results = false;
                         self.app.current_file = None;
                         self.app.pdf_page = 0;
@@ -485,6 +508,7 @@ impl<'a> UI<'a> {
                     }
                 });
 
+            // --- MAIN VIEW PORT ---
             ui.vertical_centered(|ui| {
                 if self.app.is_loading {
                     ui.add_space(ui.available_height() / 2.0);
@@ -494,7 +518,8 @@ impl<'a> UI<'a> {
                     let mut prev = false;
                     let mut next = false;
 
-                    if let Some(content) = &self.app.current_file {
+                    // Take mutable reference to handle audio Play/Pause state correctly
+                    if let Some(content) = &mut self.app.current_file {
                         use crate::file_handler::FileContent;
                         match content {
                             FileContent::Text(t) => {
@@ -508,13 +533,54 @@ impl<'a> UI<'a> {
                                 let a = ui.available_size() - Vec2::new(20.0, 20.0);
                                 ui.add(egui::Image::new(tex).max_width(a.x).max_height(a.y));
                             }
+                            
+                            // ---- FULL PDF VIEWER ----
                             FileContent::Pdf { pages, .. } => {
                                 if !pages.is_empty() {
-                                    ui.add_space(80.0);
-                                    if let Some(tex) = pages.get(page) {
-                                        let a = ui.available_size() - Vec2::new(0.0, 120.0);
-                                        ui.add(egui::Image::new(tex).max_width(a.x).max_height(a.y));
-                                    }
+                                    // Toolbar
+                                    ui.add_space(34.0);
+                                    ui.horizontal(|ui| {
+                                        ui.add_space(120.0); // Offset for back button
+                                        ui.label(egui::RichText::new(format!("Page {} / {}", page + 1, pages.len())).size(22.0).strong().color(SECONDARY_TEXT_COLOR));
+                                        
+                                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                            ui.add_space(120.0); // Offset for info button
+                                            
+                                            // Zoom Buttons
+                                            let mut style = (*ctx.style()).clone();
+                                            style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
+                                            style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
+                                            style.visuals.widgets.inactive.rounding = Rounding::same(8.0);
+                                            ui.style_mut().visuals = style.visuals;
+
+                                            if ui.add_sized([44.0, 44.0], egui::Button::new(egui::RichText::new("➕").size(24.0))).clicked() {
+                                                self.app.pdf_zoom = (self.app.pdf_zoom + 0.25).min(3.0);
+                                            }
+                                            ui.add_space(10.0);
+                                            if ui.add_sized([44.0, 44.0], egui::Button::new(egui::RichText::new("➖").size(24.0))).clicked() {
+                                                self.app.pdf_zoom = (self.app.pdf_zoom - 0.25).max(0.5);
+                                            }
+                                        });
+                                    });
+
+                                    ui.add_space(20.0);
+
+                                    // Scrollable Canvas
+                                    egui::ScrollArea::both()
+                                        .auto_shrink([false, false])
+                                        .max_height(ui.available_height() - 100.0) // Leave space for nav
+                                        .show(ui, |ui| {
+                                        if let Some(tex) = pages.get(page) {
+                                            let aspect = tex.size()[0] as f32 / tex.size()[1] as f32;
+                                            // Default scale fills screen vertically minus margins. Then multiply by zoom factor.
+                                            let mut display_height = (ctx.screen_rect().height() - 200.0) * self.app.pdf_zoom;
+                                            let mut display_width = display_height * aspect;
+                                            
+                                            ui.add(egui::Image::new(tex).fit_to_exact_size(egui::vec2(display_width, display_height)));
+                                        }
+                                    });
+
+                                    // Bottom Navigation Area
                                     egui::Area::new(Id::new("pdf_nav"))
                                         .order(egui::Order::Foreground)
                                         .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
@@ -531,14 +597,66 @@ impl<'a> UI<'a> {
                                         });
                                 }
                             }
-                            FileContent::Audio(_) => {
-                                ui.add_space(ui.available_height() / 2.0);
-                                ui.label(egui::RichText::new("🎵 Audio playing...").size(28.0).color(PRIMARY_TEXT_COLOR));
+                            
+                            // ---- FULL AUDIO PLAYER ----
+                            FileContent::Audio { sink, is_playing } => {
+                                ui.add_space(ui.available_height() / 3.0);
+                                ui.label(egui::RichText::new("🎵 Playing Audio").size(40.0).strong().color(PRIMARY_TEXT_COLOR));
+                                ui.add_space(10.0);
+                                ui.label(egui::RichText::new(format!("Project: {}", self.app.current_code)).size(20.0).color(SECONDARY_TEXT_COLOR));
+                                ui.add_space(50.0);
+
+                                ui.horizontal(|ui| {
+                                    ui.add_space(ui.available_width() / 2.0 - 100.0); // center
+                                    
+                                    let mut style = (*ctx.style()).clone();
+                                    style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
+                                    style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                                    style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                    ui.style_mut().visuals = style.visuals;
+
+                                    let icon = if *is_playing { "⏸ Pause" } else { "▶ Play" };
+                                    let btn = egui::Button::new(egui::RichText::new(icon).size(30.0).color(Color32::WHITE));
+                                    
+                                    if ui.add_sized([200.0, 75.0], btn).clicked() {
+                                        if *is_playing {
+                                            sink.pause();
+                                            *is_playing = false;
+                                        } else {
+                                            sink.play();
+                                            *is_playing = true;
+                                        }
+                                    }
+                                });
                             }
-                            FileContent::Video => {
-                                ui.add_space(ui.available_height() / 2.0);
-                                ui.label(egui::RichText::new("🎬 Video Player opened").size(28.0).color(PRIMARY_TEXT_COLOR));
+                            
+                            // ---- FULL VIDEO MANAGEMENT ----
+                            FileContent::Video(child_arc) => {
+                                ui.add_space(ui.available_height() / 3.0);
+                                ui.label(egui::RichText::new("🎬 Video Playing in External Window").size(32.0).strong().color(PRIMARY_TEXT_COLOR));
+                                ui.add_space(40.0);
+
+                                ui.horizontal(|ui| {
+                                    ui.add_space(ui.available_width() / 2.0 - 120.0);
+                                    
+                                    let mut style = (*ctx.style()).clone();
+                                    style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(250, 88, 88); // RED
+                                    style.visuals.widgets.hovered.bg_fill = Color32::from_rgb(200, 60, 60);
+                                    style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                    ui.style_mut().visuals = style.visuals;
+
+                                    let btn = egui::Button::new(egui::RichText::new("⏹ Stop Video").size(30.0).color(Color32::WHITE));
+                                    if ui.add_sized([240.0, 75.0], btn).clicked() {
+                                        if let Ok(mut child) = child_arc.lock() {
+                                            let _ = child.kill();
+                                            let _ = child.wait(); // prevent zombie process
+                                        }
+                                        // Auto-close results view when video is stopped
+                                        self.app.show_results = false;
+                                    }
+                                });
                             }
+
                             FileContent::Html(h) => {
                                 egui::ScrollArea::vertical().show(ui, |ui| {
                                     ui.add_space(100.0);

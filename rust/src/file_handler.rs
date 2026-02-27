@@ -1,29 +1,39 @@
 use eframe::egui::{self, ColorImage, TextureHandle};
 use std::path::Path;
 use std::process::Command;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct FileHandler {
-    audio_player: Option<rodio::OutputStream>,
+    // Keep the audio stream alive globally so it doesn't instantly close!
+    _audio_stream: Option<rodio::OutputStream>,
+    audio_handle: Option<rodio::OutputStreamHandle>,
 }
 
 #[derive(Clone)]
-#[allow(dead_code)]
 pub enum FileContent {
     Text(String),
     Image(TextureHandle),
     Pdf {
         pages: Vec<TextureHandle>,
     },
-    Audio(()),
-    Video,
+    Audio {
+        sink: Arc<rodio::Sink>,
+        is_playing: bool,
+    },
+    Video(Arc<Mutex<std::process::Child>>),
     Html(String),
 }
 
 impl FileHandler {
     pub fn new() -> Self {
-        let audio_player = rodio::OutputStream::try_default().ok().map(|(stream, _)| stream);
-        Self { audio_player }
+        let (stream, handle) = match rodio::OutputStream::try_default() {
+            Ok((s, h)) => (Some(s), Some(h)),
+            Err(_) => (None, None),
+        };
+        Self {
+            _audio_stream: stream,
+            audio_handle: handle,
+        }
     }
 
     pub fn load_file(&self, ctx: &egui::Context, path: &Path) -> Result<FileContent, String> {
@@ -44,27 +54,20 @@ impl FileHandler {
                 let image_buffer = image.to_rgba8();
                 let pixels = image_buffer.as_flat_samples();
                 
-                let color_image = ColorImage::from_rgba_unmultiplied(
-                    size,
-                    pixels.as_slice(),
-                );
-
-                let texture = ctx.load_texture(
-                    path.to_string_lossy().to_string(),
-                    color_image,
-                    Default::default(),
-                );
+                let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+                let texture = ctx.load_texture(path.to_string_lossy().to_string(), color_image, Default::default());
 
                 Ok(FileContent::Image(texture))
             }
             "pdf" => {
                 let temp_dir = std::env::temp_dir().join("cube_pdf_extract");
+                let _ = std::fs::remove_dir_all(&temp_dir); // clean old files
                 std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
                 
                 let output = Command::new("pdftoppm")
                     .arg("-jpeg")
                     .arg("-scale-to")
-                    .arg("1024")
+                    .arg("1400") // High resolution so Zoom works well
                     .arg(path)
                     .arg(temp_dir.join("page"))
                     .output()
@@ -80,6 +83,7 @@ impl FileHandler {
                     .filter_map(Result::ok)
                     .collect();
                 
+                // Sort to ensure correct page order
                 entries.sort_by_key(|e| e.path());
 
                 for entry in entries {
@@ -88,16 +92,8 @@ impl FileHandler {
                         let image_buffer = image.to_rgba8();
                         let pixels = image_buffer.as_flat_samples();
                         
-                        let color_image = ColorImage::from_rgba_unmultiplied(
-                            size,
-                            pixels.as_slice(),
-                        );
-
-                        let texture = ctx.load_texture(
-                            entry.path().to_string_lossy().to_string(),
-                            color_image,
-                            Default::default(),
-                        );
+                        let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+                        let texture = ctx.load_texture(entry.path().to_string_lossy().to_string(), color_image, Default::default());
                         pages.push(texture);
                     }
                     let _ = std::fs::remove_file(entry.path());
@@ -108,35 +104,30 @@ impl FileHandler {
             "mp4" => {
                 let path_str = path.to_string_lossy().to_string();
                 
-                std::thread::spawn(move || {
-                    let _ = Command::new("mpv")
-                        .arg("--fs")
-                        .arg("--ontop")
-                        .arg(&path_str)
-                        .output();
-                });
+                // Spawn MPV in the background but track the child process
+                let child = Command::new("mpv")
+                    .arg("--fs") // fullscreen
+                    .arg("--ontop")
+                    .arg("--no-terminal")
+                    .arg(&path_str)
+                    .spawn()
+                    .map_err(|e| format!("Failed to start mpv: {}", e))?;
                 
-                Ok(FileContent::Video)
+                Ok(FileContent::Video(Arc::new(Mutex::new(child))))
             }
             "mp3" => {
-                if let Some(_stream) = &self.audio_player {
+                if let Some(handle) = &self.audio_handle {
                     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
                     let decoder = rodio::Decoder::new(std::io::BufReader::new(file)).map_err(|e| e.to_string())?;
                     
-                    let (_stream_tmp, handle) = rodio::OutputStream::try_default().unwrap();
-                    let sink = rodio::Sink::try_new(&handle).unwrap();
+                    let sink = rodio::Sink::try_new(handle).map_err(|e| e.to_string())?;
                     sink.append(decoder);
                     sink.play();
                     
-                    let sink_arc = Arc::new(sink);
-                    
-                    std::thread::spawn(move || {
-                        while !sink_arc.empty() {
-                            std::thread::sleep(std::time::Duration::from_millis(100));
-                        }
-                    });
-
-                    Ok(FileContent::Audio(()))
+                    Ok(FileContent::Audio {
+                        sink: Arc::new(sink),
+                        is_playing: true,
+                    })
                 } else {
                     Err("Audio output not available".into())
                 }
