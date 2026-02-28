@@ -40,13 +40,13 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
     let opt = usvg::Options::default();
     let tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
     
-    // To prevent uneven/pixelated scaling when downsampling from a large render:
-    // Scale it to exactly double the max size it will be drawn on screen (e.g. 60 * 2 = 120).
-    // This allows the GPU to scale down evenly without harsh aliasing.
-    let target_size = 120.0;
-    
+    // Scale specifically for our UI usage. 
+    // The touch buttons are max 60x60. The image inside them is drawn at size * 0.6 (so 36x36).
+    // The history/options list draws them at 32x32.
+    // If we render them exactly at a very high resolution and let the GPU do basic filtering,
+    // they stay perfectly smooth.
+    let scale = 16.0; 
     let size = tree.size();
-    let scale = target_size / size.width().max(size.height());
     
     let width = (size.width() * scale).ceil() as u32;
     let height = (size.height() * scale).ceil() as u32;
@@ -63,5 +63,11 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
         pixmap.data(),
     );
 
-    ctx.load_texture(name, image, TextureOptions::LINEAR)
+    // Egui's default LINEAR scaling can sometimes be buggy depending on the backend (e.g. glow vs wgpu).
+    // We enforce an explicit linear min/mag filter.
+    let mut options = TextureOptions::LINEAR;
+    options.magnification = eframe::egui::TextureFilter::Linear;
+    options.minification = eframe::egui::TextureFilter::Linear;
+
+    ctx.load_texture(name, image, options)
 }
