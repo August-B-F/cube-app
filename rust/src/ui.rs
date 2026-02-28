@@ -532,31 +532,16 @@ impl<'a> UI<'a> {
                                     ui.add_space(34.0);
                                     ui.horizontal(|ui| {
                                         ui.add_space(120.0);
+                                        // Just the page number, buttons removed
                                         ui.label(egui::RichText::new(format!("Page {} / {}", page + 1, total)).size(22.0).strong().color(SECONDARY_TEXT_COLOR));
-                                        
-                                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                            ui.add_space(120.0);
-                                            let mut style = (*ctx.style()).clone();
-                                            style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
-                                            style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
-                                            style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
-                                            ui.style_mut().visuals = style.visuals;
-
-                                            if ui.add_sized([50.0, 50.0], egui::Button::new(egui::RichText::new("➕").size(24.0).color(Color32::WHITE))).clicked() {
-                                                pdf_zoom_delta += 0.25;
-                                            }
-                                            ui.add_space(10.0);
-                                            if ui.add_sized([50.0, 50.0], egui::Button::new(egui::RichText::new("➖").size(24.0).color(Color32::WHITE))).clicked() {
-                                                pdf_zoom_delta -= 0.25;
-                                            }
-                                        });
                                     });
                                     ui.add_space(20.0);
                                 });
 
                                 if ui.ui_contains_pointer() {
+                                    // Treat any vertical scrolling as zoom instead of panning
                                     let scroll_delta = ctx.input(|i| i.raw_scroll_delta.y);
-                                    if ctx.input(|i| i.modifiers.ctrl) && scroll_delta.abs() > 0.1 {
+                                    if scroll_delta.abs() > 0.1 {
                                         pdf_zoom_delta += scroll_delta * 0.005; 
                                     }
                                     let zoom_delta = ctx.input(|i| i.zoom_delta());
@@ -705,8 +690,9 @@ impl<'a> UI<'a> {
                     }
                 }
 
+                // Raised maximum zoom bound to 12.0
                 if pdf_zoom_delta != 0.0 {
-                    self.app.pdf_zoom = (self.app.pdf_zoom + pdf_zoom_delta).clamp(0.5, 5.0);
+                    self.app.pdf_zoom = (self.app.pdf_zoom + pdf_zoom_delta).clamp(0.5, 12.0);
                 }
 
                 if prev { self.app.pdf_page -= 1; }
