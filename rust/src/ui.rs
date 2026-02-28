@@ -6,7 +6,7 @@ const ACTION_BUTTON_COLOR: Color32 = Color32::from_rgb(101, 85, 143);
 const BUTTON_COLOR: Color32 = Color32::from_rgb(29, 27, 32);
 const PRIMARY_TEXT_COLOR: Color32 = Color32::from_rgb(29, 27, 32);
 const SECONDARY_TEXT_COLOR: Color32 = Color32::from_rgb(73, 69, 79);
-const SECONDARY_BUTTON_BG: Color32 = Color32::from_rgb(218, 207, 216);
+const SECONDARY_BUTTON_BG: Color32 = Color32::from_rgb(218, 207, 216); // Hex #DACFD8
 const VIDEO_ACCENT_COLOR: Color32 = Color32::from_rgb(255, 0, 0);
 
 pub struct UI<'a> {
@@ -141,7 +141,6 @@ impl<'a> UI<'a> {
                                     let r = Rect::from_center_size(rect.center(), rect.size() * hover_t);
 
                                     let fill = {
-                                        // CHANGED FROM ACTION_BUTTON_COLOR BACK TO BUTTON_COLOR (BLACK)
                                         let [fr, fg, fb, _] = BUTTON_COLOR.to_array();
                                         let [br, bg_c, bb, _] = BACKGROUND_COLOR.to_array();
                                         let r_ch = (fr as f32 + (br as f32 - fr as f32) * t) as u8;
@@ -177,7 +176,6 @@ impl<'a> UI<'a> {
                             0.15,
                         );
                         let sr = Rect::from_center_size(rect.center(), rect.size() * ht);
-                        // CHANGED BACK TO BLACK
                         ui.painter().rect_stroke(sr, Rounding::same(10.0), Stroke::new(5.0, BUTTON_COLOR));
                         ui.painter().text(
                             sr.center(), egui::Align2::CENTER_CENTER,
@@ -508,7 +506,8 @@ impl<'a> UI<'a> {
             let show_top_buttons = if is_video { overlay_alpha > 0.0 } else { true };
             let top_alpha = if is_video { overlay_alpha } else { 1.0 };
             
-            let btn_bg = if is_video { Color32::from_white_alpha(200) } else { SECONDARY_BUTTON_BG };
+            // Apply #DACFD8 specifically to all media overlay buttons for consistency 
+            let btn_bg = SECONDARY_BUTTON_BG;
             let btn_tint = BUTTON_COLOR;
 
             if show_top_buttons {
@@ -679,7 +678,7 @@ impl<'a> UI<'a> {
                                 });
 
                                 let avail_w = ui.available_width();
-                                let slider_w = avail_w * 0.65; // Reduced MP3 progress bar size per request
+                                let slider_w = avail_w * 0.65;
                                 ui.horizontal(|ui| {
                                     ui.add_space((avail_w - slider_w) / 2.0);
                                     
@@ -712,35 +711,17 @@ impl<'a> UI<'a> {
                                 ui.add_space(32.0);
 
                                 let avail_w2 = ui.available_width();
-                                // We are matching "SECONDARY_BUTTON_BG" color to rest of the app buttons
-                                let controls_w = 90.0 + 16.0 + 60.0 + 16.0 + 75.0 + 16.0 + 60.0;
+                                // Audio speed widget removed: new controls width
+                                let controls_w = 60.0 + 16.0 + 75.0 + 16.0 + 60.0;
                                 ui.horizontal(|ui| {
                                     ui.add_space((avail_w2 - controls_w) / 2.0);
                                     
                                     let mut btn_style = (*ctx.style()).clone();
-                                    // MATCHING APP BUTTON COLORS: 
+                                    // MATCHING EXACT #DACFD8
                                     btn_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
                                     btn_style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
                                     btn_style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
                                     ui.style_mut().visuals = btn_style.visuals;
-
-                                    let mut current_speed = state.playback_speed;
-                                    #[allow(deprecated)]
-                                    egui::ComboBox::from_id_source("audio_speed")
-                                        .width(90.0)
-                                        .selected_text(egui::RichText::new(format!("{}x", current_speed)).color(BUTTON_COLOR).size(18.0))
-                                        .show_ui(ui, |ui| {
-                                            ui.selectable_value(&mut current_speed, 1.0, "1.0x");
-                                            ui.selectable_value(&mut current_speed, 1.25, "1.25x");
-                                            ui.selectable_value(&mut current_speed, 1.5, "1.5x");
-                                            ui.selectable_value(&mut current_speed, 2.0, "2.0x");
-                                        });
-                                    if current_speed != state.playback_speed {
-                                        state.playback_speed = current_speed;
-                                        state.sink.set_speed(current_speed);
-                                    }
-                                    
-                                    ui.add_space(16.0);
 
                                     if ui.add_sized([60.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(BUTTON_COLOR))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() - 10.0).max(0.0);
@@ -752,7 +733,6 @@ impl<'a> UI<'a> {
                                     
                                     ui.add_space(16.0);
 
-                                    // Made playback button size look better (wider and rounded well)
                                     let dur_secs = state.duration.map(|d| d.as_secs_f32()).unwrap_or(0.0);
                                     let icon = if state.is_playing { "⏸" } else { "▶" };
                                     if ui.add_sized([75.0, 60.0], egui::Button::new(egui::RichText::new(icon).size(30.0).color(BUTTON_COLOR))).clicked() {
@@ -848,7 +828,7 @@ impl<'a> UI<'a> {
 
                             if overlay_alpha > 0.0 {
                                 egui::Area::new(Id::new("vid_controls"))
-                                    .order(egui::Order::Tooltip)
+                                    .order(egui::Order::Foreground) // Changed from Tooltip to Foreground so the popup correctly overlaps it
                                     .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -32.0])
                                     .show(ctx, |ui| {
                                         ui.multiply_opacity(overlay_alpha);
@@ -889,15 +869,15 @@ impl<'a> UI<'a> {
 
                                                     ui.horizontal(|ui| {
                                                         let mut btn_style = (*ctx.style()).clone();
-                                                        // IN VIDEO PLAYER: Match the SECONDARY_BUTTON_BG logic for the bottom controls
+                                                        // EXACT #DACFD8 FOR VIDEO BUTTONS
                                                         btn_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG; 
                                                         btn_style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
                                                         btn_style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
                                                         ui.style_mut().visuals = btn_style.visuals;
 
                                                         let icon = if state.is_playing { "⏸" } else { "▶" };
-                                                        // Styled playback button
-                                                        if ui.add_sized([64.0, 48.0], egui::Button::new(egui::RichText::new(icon).size(28.0).color(BUTTON_COLOR))).clicked() {
+                                                        // Taller and thinner MP4 playback button: [48.0, 64.0]
+                                                        if ui.add_sized([48.0, 64.0], egui::Button::new(egui::RichText::new(icon).size(28.0).color(BUTTON_COLOR))).clicked() {
                                                             state.is_playing = !state.is_playing;
                                                             if let Some(sink) = &state.audio_sink {
                                                                 if state.is_playing { sink.play(); } else { sink.pause(); }
@@ -922,6 +902,11 @@ impl<'a> UI<'a> {
                                                             .size(20.0).strong().color(Color32::WHITE));
                                                             
                                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                            // Ensure combo box popup gets the correct #DACFD8 background
+                                                            let mut combo_style = (*ctx.style()).clone();
+                                                            combo_style.visuals.window_fill = SECONDARY_BUTTON_BG;
+                                                            ui.set_style(combo_style);
+
                                                             let mut current_speed = state.playback_speed;
                                                             #[allow(deprecated)]
                                                             egui::ComboBox::from_id_source("vid_speed")
