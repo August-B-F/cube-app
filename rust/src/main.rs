@@ -1,7 +1,13 @@
+mod app;
+mod database;
+mod file_handler;
+mod translations;
+mod ui;
+
 use eframe::egui;
 use crate::app::CubeApp;
 
-pub fn start() -> Result<(), eframe::Error> {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 720.0])
