@@ -38,7 +38,6 @@ impl<'a> UI<'a> {
         
         ctx.set_style(style);
 
-        // Global Mouse Tracking for Overlays
         if ctx.input(|i| i.pointer.is_moving() || i.pointer.any_click() || i.pointer.any_down()) {
             self.app.last_mouse_move = std::time::Instant::now();
         }
@@ -86,6 +85,36 @@ impl<'a> UI<'a> {
             egui::Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
             Color32::WHITE,
         );
+        response.clicked()
+    }
+
+    fn draw_chevron_btn(
+        ui: &mut egui::Ui,
+        size: f32,
+        bg: Color32,
+        rounding: f32,
+        point_left: bool,
+    ) -> bool {
+        let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
+        let hover_col = if response.hovered() || response.is_pointer_button_down_on() {
+            Color32::from_black_alpha(25)
+        } else {
+            Color32::TRANSPARENT
+        };
+        let bg_col = if bg == Color32::TRANSPARENT { hover_col } else { bg };
+        ui.painter().rect_filled(rect, Rounding::same(rounding), bg_col);
+
+        let center = rect.center();
+        let s = size * 0.2;
+        let offset_x = if point_left { s * 0.5 } else { -s * 0.5 };
+        
+        let p1 = center + egui::vec2(offset_x, -s);
+        let p2 = center + egui::vec2(-offset_x, 0.0);
+        let p3 = center + egui::vec2(offset_x, s);
+
+        ui.painter().line_segment([p1, p2], Stroke::new(3.0, PRIMARY_TEXT_COLOR));
+        ui.painter().line_segment([p2, p3], Stroke::new(3.0, PRIMARY_TEXT_COLOR));
+
         response.clicked()
     }
 
@@ -466,8 +495,6 @@ impl<'a> UI<'a> {
     fn render_results(&mut self, ctx: &egui::Context) {
         let back_tex = self.app.icons.back.clone();
         let info_tex = self.app.icons.info.clone();
-        let cl_tex   = self.app.icons.chevron_left.clone();
-        let cr_tex   = self.app.icons.chevron_right.clone();
 
         let audio_handle = self.app.file_handler.audio_handle.clone();
 
@@ -610,11 +637,11 @@ impl<'a> UI<'a> {
                                             ui.multiply_opacity(overlay_alpha);
                                             ui.horizontal(|ui| {
                                                 if page > 0 {
-                                                    if Self::icon_btn(ui, &cl_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { prev = true; }
+                                                    if Self::draw_chevron_btn(ui, 60.0, SECONDARY_BUTTON_BG, 10.0, true) { prev = true; }
                                                 } else { ui.add_space(68.0); }
                                                 ui.add_space(30.0);
                                                 if page < total - 1 {
-                                                    if Self::icon_btn(ui, &cr_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { next = true; }
+                                                    if Self::draw_chevron_btn(ui, 60.0, SECONDARY_BUTTON_BG, 10.0, false) { next = true; }
                                                 }
                                             });
                                         });

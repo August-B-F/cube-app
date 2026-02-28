@@ -43,8 +43,6 @@ pub struct Icons {
     pub language: TextureHandle,
     pub back: TextureHandle,
     pub info: TextureHandle,
-    pub chevron_left: TextureHandle,
-    pub chevron_right: TextureHandle,
     pub error: TextureHandle,
     pub success: TextureHandle,
 }
@@ -53,7 +51,10 @@ impl Icons {
     pub fn load(ctx: &Context) -> Self {
         let load_svg = |name: &str| -> TextureHandle {
             let path = format!("../assets/icons/{}.svg", name);
-            let svg_data = std::fs::read(&path).unwrap_or_else(|_| panic!("Missing {}", path));
+            // Default blank transparent texture if SVG fails to load so the app doesn't crash
+            let svg_data = std::fs::read(&path).unwrap_or_else(|_| {
+                b"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\"></svg>".to_vec()
+            });
             
             let rtree = usvg::Tree::from_data(&svg_data, &usvg::Options::default()).unwrap();
             
@@ -79,8 +80,6 @@ impl Icons {
             language: load_svg("language"),
             back: load_svg("back"),
             info: load_svg("info"),
-            chevron_left: load_svg("chevron-left"),
-            chevron_right: load_svg("chevron-right"),
             error: load_svg("error"),
             success: load_svg("success"),
         }
@@ -90,6 +89,7 @@ impl Icons {
 #[derive(Clone, PartialEq)]
 pub enum PopupType {
     Error,
+    #[allow(dead_code)]
     Success,
 }
 
