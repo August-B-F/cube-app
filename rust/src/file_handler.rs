@@ -4,6 +4,7 @@ use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::collections::HashMap;
+use std::io::Read;
 
 pub struct FileHandler {
     _audio_stream: Option<rodio::OutputStream>,
@@ -44,6 +45,106 @@ impl AudioState {
         self.current_pos = target;
         self.last_update = std::time::Instant::now();
         Ok(())
+    }
+}
+
+pub struct VideoState {
+    pub rx: std::sync::mpsc::Receiver<ColorImage>,
+    pub tx: std::sync::mpsc::Sender<ColorImage>,
+    pub texture: Option<TextureHandle>,
+    pub is_playing: bool,
+    pub current_time: f32,
+    pub duration: f32,
+    pub fps: f32,
+    pub width: usize,
+    pub height: usize,
+    pub last_update: std::time::Instant,
+    pub audio_sink: Option<Arc<rodio::Sink>>,
+    pub path: PathBuf,
+    pub command_child: Arc<Mutex<Option<std::process::Child>>>,
+}
+
+impl Drop for VideoState {
+    fn drop(&mut self) {
+        if let Ok(mut child_opt) = self.command_child.lock() {
+            if let Some(mut child) = child_opt.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+}
+
+impl VideoState {
+    pub fn seek(&mut self, target_time: f32, audio_handle: &Option<rodio::OutputStreamHandle>) {
+        self.current_time = target_time;
+        self.last_update = std::time::Instant::now();
+
+        if let Ok(mut child_opt) = self.command_child.lock() {
+            if let Some(mut child) = child_opt.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+
+        while self.rx.try_recv().is_ok() {}
+
+        let path_str = self.path.to_string_lossy().to_string();
+        let tx = self.tx.clone();
+        let width = self.width;
+        let height = self.height;
+
+        let child_res = std::process::Command::new("ffmpeg")
+            .args(&["-ss", &target_time.to_string()])
+            .args(&["-i", &path_str])
+            .args(&["-f", "image2pipe", "-pix_fmt", "rgba", "-vcodec", "rawvideo", "-"])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+
+        if let Ok(mut child) = child_res {
+            let mut stdout = child.stdout.take().unwrap();
+            let child_arc = Arc::new(Mutex::new(Some(child)));
+            self.command_child = child_arc.clone();
+
+            std::thread::spawn(move || {
+                let frame_size = width * height * 4;
+                let mut buffer = vec![0u8; frame_size];
+                loop {
+                    if let Ok(mut child_lock) = child_arc.try_lock() {
+                        if child_lock.is_none() { break; } 
+                    }
+                    if stdout.read_exact(&mut buffer).is_err() {
+                        break;
+                    }
+                    let image = ColorImage::from_rgba_unmultiplied([width, height], &buffer);
+                    if tx.send(image).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+
+        if let Some(sink) = &self.audio_sink {
+            sink.stop();
+        }
+        if let Some(handle) = audio_handle {
+            if let Ok(file) = std::fs::File::open(&self.path) {
+                if let Ok(decoder) = rodio::Decoder::new(std::io::BufReader::new(file)) {
+                    if let Ok(new_sink) = rodio::Sink::try_new(handle) {
+                        use rodio::Source;
+                        let skipped = decoder.skip_duration(std::time::Duration::from_secs_f32(target_time));
+                        new_sink.append(skipped);
+                        if self.is_playing {
+                            new_sink.play();
+                        } else {
+                            new_sink.pause();
+                        }
+                        self.audio_sink = Some(Arc::new(new_sink));
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -162,7 +263,7 @@ pub enum FileContent {
     Image(TextureHandle),
     Pdf(PdfState),
     Audio(AudioState),
-    Video(Arc<Mutex<std::process::Child>>),
+    Video(VideoState),
     Html(String),
 }
 
@@ -225,29 +326,48 @@ impl FileHandler {
             }
             "mp4" => {
                 let path_str = path.to_string_lossy().to_string();
-                
-                // Fallback chain: vlc -> ffplay -> default OS handler (xdg-open)
-                // This prevents "mpv file not found" crashes if mpv isn't installed.
-                let child = Command::new("vlc")
-                    .arg("--fullscreen")
-                    .arg("--play-and-exit")
+
+                let output = std::process::Command::new("ffprobe")
+                    .args(&["-v", "error", "-select_streams", "v:0",
+                            "-show_entries", "stream=width,height,r_frame_rate,duration",
+                            "-of", "default=noprint_wrappers=1:nokey=1"])
                     .arg(&path_str)
-                    .spawn()
-                    .or_else(|_| {
-                        Command::new("ffplay")
-                            .arg("-autoexit")
-                            .arg("-fs")
-                            .arg(&path_str)
-                            .spawn()
-                    })
-                    .or_else(|_| {
-                        Command::new("xdg-open")
-                            .arg(&path_str)
-                            .spawn()
-                    })
-                    .map_err(|e| format!("Unable to open system video player: {}", e))?;
-                
-                Ok(FileContent::Video(Arc::new(Mutex::new(child))))
+                    .output().map_err(|e| format!("Failed to run ffprobe: {}", e))?;
+
+                let out_str = String::from_utf8_lossy(&output.stdout);
+                let mut lines = out_str.lines();
+
+                let width: usize = lines.next().unwrap_or("1920").parse().unwrap_or(1920);
+                let height: usize = lines.next().unwrap_or("1080").parse().unwrap_or(1080);
+                let fps_str = lines.next().unwrap_or("30/1");
+                let fps: f32 = if let Some((num, den)) = fps_str.split_once('/') {
+                    num.parse::<f32>().unwrap_or(30.0) / den.parse::<f32>().unwrap_or(1.0)
+                } else {
+                    30.0
+                };
+                let duration: f32 = lines.next().unwrap_or("0").parse().unwrap_or(0.0);
+
+                let (tx, rx) = std::sync::mpsc::channel();
+
+                let mut state = VideoState {
+                    rx,
+                    tx,
+                    texture: None,
+                    is_playing: true,
+                    current_time: 0.0,
+                    duration,
+                    fps,
+                    width,
+                    height,
+                    last_update: std::time::Instant::now(),
+                    audio_sink: None,
+                    path: path.to_path_buf(),
+                    command_child: Arc::new(Mutex::new(None)),
+                };
+
+                state.seek(0.0, &self.audio_handle);
+
+                Ok(FileContent::Video(state))
             }
             "mp3" => {
                 if let Some(handle) = &self.audio_handle {

@@ -36,6 +36,8 @@ pub struct CubeApp {
     pub categories: Vec<&'static str>,
 
     pub icons: Icons,
+    
+    pub last_mouse_input: std::time::Instant,
 }
 
 #[derive(Clone)]
@@ -87,6 +89,7 @@ impl CubeApp {
                 "ARCHIVE", "EDITIONS", "WEBSITE", "MATRICES", "TEXTURES", "EXHIBITS",
             ],
             icons: Icons::load(&cc.egui_ctx),
+            last_mouse_input: std::time::Instant::now(),
         }
     }
 
