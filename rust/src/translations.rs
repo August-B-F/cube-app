@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use serde_json;
 
 pub struct Translations {
     pub map: HashMap<&'static str, HashMap<Language, &'static str>>,
