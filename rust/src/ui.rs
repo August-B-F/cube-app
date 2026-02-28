@@ -2,10 +2,12 @@ use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2, Rounding, Stroke, Mar
 use crate::app::{CubeApp, PopupType};
 
 const BACKGROUND_COLOR: Color32 = Color32::from_rgb(236, 230, 240);
+const ACTION_BUTTON_COLOR: Color32 = Color32::from_rgb(101, 85, 143);
 const BUTTON_COLOR: Color32 = Color32::from_rgb(29, 27, 32);
 const PRIMARY_TEXT_COLOR: Color32 = Color32::from_rgb(29, 27, 32);
 const SECONDARY_TEXT_COLOR: Color32 = Color32::from_rgb(73, 69, 79);
 const SECONDARY_BUTTON_BG: Color32 = Color32::from_rgb(218, 207, 216);
+const VIDEO_ACCENT_COLOR: Color32 = Color32::from_rgb(255, 0, 0);
 
 pub struct UI<'a> {
     app: &'a mut CubeApp,
@@ -139,7 +141,7 @@ impl<'a> UI<'a> {
                                     let r = Rect::from_center_size(rect.center(), rect.size() * hover_t);
 
                                     let fill = {
-                                        let [fr, fg, fb, _] = BUTTON_COLOR.to_array();
+                                        let [fr, fg, fb, _] = ACTION_BUTTON_COLOR.to_array();
                                         let [br, bg_c, bb, _] = BACKGROUND_COLOR.to_array();
                                         let r_ch = (fr as f32 + (br as f32 - fr as f32) * t) as u8;
                                         let g_ch = (fg as f32 + (bg_c as f32 - fg as f32) * t) as u8;
@@ -152,7 +154,7 @@ impl<'a> UI<'a> {
                                         r,
                                         Rounding::same(10.0),
                                         fill,
-                                        Stroke::new(stroke_w, BUTTON_COLOR),
+                                        Stroke::new(stroke_w, ACTION_BUTTON_COLOR),
                                     );
                                 }
                                 ui.end_row();
@@ -174,10 +176,10 @@ impl<'a> UI<'a> {
                             0.15,
                         );
                         let sr = Rect::from_center_size(rect.center(), rect.size() * ht);
-                        ui.painter().rect_stroke(sr, Rounding::same(10.0), Stroke::new(5.0, BUTTON_COLOR));
+                        ui.painter().rect_stroke(sr, Rounding::same(10.0), Stroke::new(5.0, ACTION_BUTTON_COLOR));
                         ui.painter().text(
                             sr.center(), egui::Align2::CENTER_CENTER,
-                            &scan_text, egui::FontId::proportional(24.0), BUTTON_COLOR,
+                            &scan_text, egui::FontId::proportional(24.0), ACTION_BUTTON_COLOR,
                         );
                     });
                 });
@@ -222,12 +224,12 @@ impl<'a> UI<'a> {
                             ui.set_style(style);
 
                             let btn_next = egui::Button::new(
-                                egui::RichText::new(&next).size(22.0).color(BUTTON_COLOR)
+                                egui::RichText::new(&next).size(22.0).color(ACTION_BUTTON_COLOR)
                             ).frame(false);
                             if ui.add(btn_next).clicked() { self.app.show_tutorial = false; }
                             ui.add_space(24.0);
                             let btn_skip = egui::Button::new(
-                                egui::RichText::new(&skip).size(22.0).color(BUTTON_COLOR)
+                                egui::RichText::new(&skip).size(22.0).color(ACTION_BUTTON_COLOR)
                             ).frame(false);
                             if ui.add(btn_skip).clicked() { self.app.show_tutorial = false; }
                         });
@@ -397,8 +399,8 @@ impl<'a> UI<'a> {
                         ui.add_space(30.0);
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
                         let mut style = (*ctx.style()).clone();
-                        style.visuals.widgets.inactive.bg_fill = BUTTON_COLOR;
-                        style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
+                        style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
+                        style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
                         ui.style_mut().visuals = style.visuals;
                         
                         let close_btn = egui::Button::new(
@@ -457,8 +459,8 @@ impl<'a> UI<'a> {
                         ui.add_space(30.0);
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
                         let mut style = (*ctx.style()).clone();
-                        style.visuals.widgets.inactive.bg_fill = BUTTON_COLOR;
-                        style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
+                        style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
+                        style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
                         ui.style_mut().visuals = style.visuals;
 
                         let close_btn = egui::Button::new(
@@ -483,13 +485,12 @@ impl<'a> UI<'a> {
         let screen_w = ctx.screen_rect().width();
         
         let elapsed = self.app.last_mouse_input.elapsed().as_secs_f32();
-        let overlay_alpha = if elapsed < 2.0 { 1.0 } else if elapsed < 3.0 { 1.0 - (elapsed - 2.0) } else { 0.0 };
+        let overlay_alpha = if elapsed < 3.5 { 1.0 } else if elapsed < 4.5 { 1.0 - (elapsed - 3.5) } else { 0.0 };
 
-        if elapsed < 3.1 && is_video {
+        if elapsed < 4.6 && is_video {
             ctx.request_repaint();
         }
 
-        // Apply a full black background to the panel if the content is a video.
         if is_video {
             let mut style = (*ctx.style()).clone();
             style.visuals.panel_fill = Color32::BLACK;
@@ -502,18 +503,15 @@ impl<'a> UI<'a> {
             style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
             ui.set_style(style);
             
-            // For the video player, we only hide the top buttons when the overlay fades.
             let show_top_buttons = if is_video { overlay_alpha > 0.0 } else { true };
             let top_alpha = if is_video { overlay_alpha } else { 1.0 };
             
-            // To ensure black icons are perfectly visible over the black video canvas, 
-            // we use a highly visible semi-transparent white background circle.
-            let btn_bg = if is_video { Color32::from_white_alpha(220) } else { SECONDARY_BUTTON_BG };
-            let btn_tint = BUTTON_COLOR; // The icon itself remains black
+            let btn_bg = if is_video { Color32::from_white_alpha(200) } else { SECONDARY_BUTTON_BG };
+            let btn_tint = BUTTON_COLOR;
 
             if show_top_buttons {
                 egui::Area::new(Id::new("back_area"))
-                    .order(egui::Order::Foreground)
+                    .order(egui::Order::Tooltip)
                     .anchor(egui::Align2::LEFT_TOP, [34.0, 34.0])
                     .show(ctx, |ui| {
                         ui.multiply_opacity(top_alpha);
@@ -529,7 +527,7 @@ impl<'a> UI<'a> {
                     });
 
                 egui::Area::new(Id::new("info_area"))
-                    .order(egui::Order::Foreground)
+                    .order(egui::Order::Tooltip)
                     .anchor(egui::Align2::RIGHT_TOP, [-34.0, 34.0])
                     .show(ctx, |ui| {
                         ui.multiply_opacity(top_alpha);
@@ -645,52 +643,56 @@ impl<'a> UI<'a> {
                         }
                         
                         FileContent::Audio(state) => {
-                            ui.vertical_centered(|ui| {
-                                ui.add_space(ctx.screen_rect().height() * 0.3);
+                            ui.vertical(|ui| {
+                                ui.add_space(ctx.screen_rect().height() * 0.25);
 
-                                ui.label(egui::RichText::new(&self.app.current_code).size(56.0).strong().color(PRIMARY_TEXT_COLOR));
-                                ui.add_space(40.0);
+                                ui.vertical_centered(|ui| {
+                                    ui.label(egui::RichText::new(&self.app.current_code).size(56.0).strong().color(PRIMARY_TEXT_COLOR));
+                                    ui.add_space(40.0);
 
-                                let now = std::time::Instant::now();
-                                if state.is_playing {
-                                    let dt = now.duration_since(state.last_update);
-                                    state.current_pos += std::time::Duration::from_secs_f32(dt.as_secs_f32() * state.playback_speed);
-                                    ctx.request_repaint();
-                                }
-                                state.last_update = now;
-                                
-                                let dur_secs = state.duration.map(|d| d.as_secs_f32()).unwrap_or(0.0);
-                                if dur_secs > 0.0 && state.current_pos.as_secs_f32() > dur_secs {
-                                    state.current_pos = std::time::Duration::from_secs_f32(dur_secs);
-                                    state.is_playing = false;
-                                }
-                                
-                                let mut pos_secs = state.current_pos.as_secs_f32();
+                                    let now = std::time::Instant::now();
+                                    if state.is_playing {
+                                        let dt = now.duration_since(state.last_update);
+                                        state.current_pos += std::time::Duration::from_secs_f32(dt.as_secs_f32() * state.playback_speed);
+                                        ctx.request_repaint();
+                                    }
+                                    state.last_update = now;
+                                    
+                                    let dur_secs = state.duration.map(|d| d.as_secs_f32()).unwrap_or(0.0);
+                                    if dur_secs > 0.0 && state.current_pos.as_secs_f32() > dur_secs {
+                                        state.current_pos = std::time::Duration::from_secs_f32(dur_secs);
+                                        state.is_playing = false;
+                                    }
+                                    
+                                    let mut pos_secs = state.current_pos.as_secs_f32();
 
-                                let fmt_time = |secs: f32| -> String {
-                                    let s = secs as u32;
-                                    format!("{:02}:{:02}", s / 60, s % 60)
-                                };
+                                    let fmt_time = |secs: f32| -> String {
+                                        let s = secs as u32;
+                                        format!("{:02}:{:02}", s / 60, s % 60)
+                                    };
 
-                                ui.label(egui::RichText::new(format!("{} / {}", fmt_time(pos_secs), fmt_time(dur_secs)))
-                                    .size(24.0).strong().color(SECONDARY_TEXT_COLOR));
-                                ui.add_space(16.0);
+                                    ui.label(egui::RichText::new(format!("{} / {}", fmt_time(pos_secs), fmt_time(dur_secs)))
+                                        .size(24.0).strong().color(SECONDARY_TEXT_COLOR));
+                                    ui.add_space(32.0);
+                                });
 
-                                // Audio Slider perfectly centered via available_width exact math
                                 let avail_w = ui.available_width();
-                                let slider_w = avail_w * 0.85; // Made longer per user request (85%)
+                                let slider_w = avail_w * 0.90;
                                 ui.horizontal(|ui| {
                                     ui.add_space((avail_w - slider_w) / 2.0);
                                     
                                     let mut slider_style = (*ctx.style()).clone();
                                     slider_style.visuals.widgets.inactive.bg_fill = Color32::from_gray(200);
-                                    slider_style.visuals.widgets.active.bg_fill = BUTTON_COLOR;
-                                    slider_style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
-                                    slider_style.visuals.selection.bg_fill = BUTTON_COLOR;
+                                    slider_style.visuals.widgets.active.bg_fill = ACTION_BUTTON_COLOR;
+                                    slider_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                                    slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
                                     ui.set_style(slider_style);
 
+                                    let dur_secs = state.duration.map(|d| d.as_secs_f32()).unwrap_or(0.0);
+                                    let mut pos_secs = state.current_pos.as_secs_f32();
                                     let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
                                     let resp = ui.add_sized([slider_w, 32.0], slider);
+                                    
                                     if resp.changed() {
                                         state.current_pos = std::time::Duration::from_secs_f32(pos_secs);
                                     }
@@ -703,15 +705,14 @@ impl<'a> UI<'a> {
 
                                 ui.add_space(32.0);
 
-                                // Audio Controls exactly centered 
                                 let avail_w2 = ui.available_width();
                                 let controls_w = 90.0 + 16.0 + 70.0 + 16.0 + 90.0 + 16.0 + 70.0;
                                 ui.horizontal(|ui| {
                                     ui.add_space((avail_w2 - controls_w) / 2.0);
                                     
                                     let mut btn_style = (*ctx.style()).clone();
-                                    btn_style.visuals.widgets.inactive.bg_fill = BUTTON_COLOR;
-                                    btn_style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
+                                    btn_style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
+                                    btn_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
                                     btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
                                     ui.style_mut().visuals = btn_style.visuals;
 
@@ -743,6 +744,7 @@ impl<'a> UI<'a> {
                                     
                                     ui.add_space(16.0);
 
+                                    let dur_secs = state.duration.map(|d| d.as_secs_f32()).unwrap_or(0.0);
                                     let icon = if state.is_playing { "⏸" } else { "▶" };
                                     if ui.add_sized([90.0, 75.0], egui::Button::new(egui::RichText::new(icon).size(36.0).color(Color32::WHITE))).clicked() {
                                         if state.is_playing {
@@ -837,17 +839,16 @@ impl<'a> UI<'a> {
 
                             if overlay_alpha > 0.0 {
                                 egui::Area::new(Id::new("vid_controls"))
-                                    .order(egui::Order::Foreground)
+                                    .order(egui::Order::Tooltip)
                                     .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -32.0])
                                     .show(ctx, |ui| {
                                         ui.multiply_opacity(overlay_alpha);
-                                        // Video Player control bar is much wider (95% of screen)
-                                        let bar_w = screen_w * 0.95;
+                                        let bar_w = screen_w * 0.98;
                                         
                                         egui::Frame::none()
                                             .fill(Color32::from_black_alpha(220))
                                             .rounding(Rounding::same(16.0))
-                                            .inner_margin(Margin::symmetric(32.0, 24.0))
+                                            .inner_margin(Margin::symmetric(24.0, 24.0))
                                             .show(ui, |ui| {
                                                 ui.set_width(bar_w);
                                                 
@@ -859,15 +860,14 @@ impl<'a> UI<'a> {
                                                 };
 
                                                 ui.vertical(|ui| {
+                                                    let slider_w = ui.available_width();
                                                     let mut slider_style = (*ctx.style()).clone();
                                                     slider_style.visuals.widgets.inactive.bg_fill = Color32::from_white_alpha(50);
-                                                    slider_style.visuals.widgets.active.bg_fill = Color32::WHITE;
-                                                    slider_style.visuals.widgets.hovered.bg_fill = Color32::WHITE;
-                                                    slider_style.visuals.selection.bg_fill = Color32::WHITE;
+                                                    slider_style.visuals.widgets.active.bg_fill = VIDEO_ACCENT_COLOR;
+                                                    slider_style.visuals.widgets.hovered.bg_fill = VIDEO_ACCENT_COLOR.linear_multiply(0.8);
+                                                    slider_style.visuals.selection.bg_fill = VIDEO_ACCENT_COLOR;
                                                     ui.set_style(slider_style);
                                                     
-                                                    // Slider spans exactly the available width inside the frame
-                                                    let slider_w = ui.available_width();
                                                     let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
                                                     let resp = ui.add_sized([slider_w, 24.0], slider);
                                                     if resp.changed() { state.current_time = pos_secs; }
