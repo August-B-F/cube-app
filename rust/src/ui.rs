@@ -141,7 +141,8 @@ impl<'a> UI<'a> {
                                     let r = Rect::from_center_size(rect.center(), rect.size() * hover_t);
 
                                     let fill = {
-                                        let [fr, fg, fb, _] = ACTION_BUTTON_COLOR.to_array();
+                                        // CHANGED FROM ACTION_BUTTON_COLOR BACK TO BUTTON_COLOR (BLACK)
+                                        let [fr, fg, fb, _] = BUTTON_COLOR.to_array();
                                         let [br, bg_c, bb, _] = BACKGROUND_COLOR.to_array();
                                         let r_ch = (fr as f32 + (br as f32 - fr as f32) * t) as u8;
                                         let g_ch = (fg as f32 + (bg_c as f32 - fg as f32) * t) as u8;
@@ -154,7 +155,7 @@ impl<'a> UI<'a> {
                                         r,
                                         Rounding::same(10.0),
                                         fill,
-                                        Stroke::new(stroke_w, ACTION_BUTTON_COLOR),
+                                        Stroke::new(stroke_w, BUTTON_COLOR),
                                     );
                                 }
                                 ui.end_row();
@@ -176,10 +177,11 @@ impl<'a> UI<'a> {
                             0.15,
                         );
                         let sr = Rect::from_center_size(rect.center(), rect.size() * ht);
-                        ui.painter().rect_stroke(sr, Rounding::same(10.0), Stroke::new(5.0, ACTION_BUTTON_COLOR));
+                        // CHANGED BACK TO BLACK
+                        ui.painter().rect_stroke(sr, Rounding::same(10.0), Stroke::new(5.0, BUTTON_COLOR));
                         ui.painter().text(
                             sr.center(), egui::Align2::CENTER_CENTER,
-                            &scan_text, egui::FontId::proportional(24.0), ACTION_BUTTON_COLOR,
+                            &scan_text, egui::FontId::proportional(24.0), BUTTON_COLOR,
                         );
                     });
                 });
@@ -224,12 +226,12 @@ impl<'a> UI<'a> {
                             ui.set_style(style);
 
                             let btn_next = egui::Button::new(
-                                egui::RichText::new(&next).size(22.0).color(ACTION_BUTTON_COLOR)
+                                egui::RichText::new(&next).size(22.0).color(BUTTON_COLOR)
                             ).frame(false);
                             if ui.add(btn_next).clicked() { self.app.show_tutorial = false; }
                             ui.add_space(24.0);
                             let btn_skip = egui::Button::new(
-                                egui::RichText::new(&skip).size(22.0).color(ACTION_BUTTON_COLOR)
+                                egui::RichText::new(&skip).size(22.0).color(BUTTON_COLOR)
                             ).frame(false);
                             if ui.add(btn_skip).clicked() { self.app.show_tutorial = false; }
                         });
@@ -399,8 +401,8 @@ impl<'a> UI<'a> {
                         ui.add_space(30.0);
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
                         let mut style = (*ctx.style()).clone();
-                        style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
-                        style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                        style.visuals.widgets.inactive.bg_fill = BUTTON_COLOR;
+                        style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
                         ui.style_mut().visuals = style.visuals;
                         
                         let close_btn = egui::Button::new(
@@ -459,8 +461,8 @@ impl<'a> UI<'a> {
                         ui.add_space(30.0);
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
                         let mut style = (*ctx.style()).clone();
-                        style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
-                        style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                        style.visuals.widgets.inactive.bg_fill = BUTTON_COLOR;
+                        style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
                         ui.style_mut().visuals = style.visuals;
 
                         let close_btn = egui::Button::new(
@@ -677,17 +679,16 @@ impl<'a> UI<'a> {
                                 });
 
                                 let avail_w = ui.available_width();
-                                let slider_w = avail_w * 0.85;
+                                let slider_w = avail_w * 0.65; // Reduced MP3 progress bar size per request
                                 ui.horizontal(|ui| {
                                     ui.add_space((avail_w - slider_w) / 2.0);
                                     
                                     let mut slider_style = (*ctx.style()).clone();
                                     slider_style.visuals.widgets.inactive.bg_fill = Color32::from_gray(200);
-                                    slider_style.visuals.widgets.active.bg_fill = ACTION_BUTTON_COLOR;
-                                    slider_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
-                                    slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
+                                    slider_style.visuals.widgets.active.bg_fill = BUTTON_COLOR;
+                                    slider_style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
+                                    slider_style.visuals.selection.bg_fill = BUTTON_COLOR;
                                     
-                                    // CRITICAL: This is the property that forces the Slider width!
                                     slider_style.spacing.slider_width = slider_w;
                                     
                                     ui.set_style(slider_style);
@@ -696,7 +697,7 @@ impl<'a> UI<'a> {
                                     let mut pos_secs = state.current_pos.as_secs_f32();
                                     let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
                                     
-                                    let resp = ui.add(slider); // We use ui.add now that width is natively enforced
+                                    let resp = ui.add(slider);
                                     
                                     if resp.changed() {
                                         state.current_pos = std::time::Duration::from_secs_f32(pos_secs);
@@ -711,14 +712,16 @@ impl<'a> UI<'a> {
                                 ui.add_space(32.0);
 
                                 let avail_w2 = ui.available_width();
-                                let controls_w = 90.0 + 16.0 + 70.0 + 16.0 + 90.0 + 16.0 + 70.0;
+                                // We are matching "SECONDARY_BUTTON_BG" color to rest of the app buttons
+                                let controls_w = 90.0 + 16.0 + 60.0 + 16.0 + 75.0 + 16.0 + 60.0;
                                 ui.horizontal(|ui| {
                                     ui.add_space((avail_w2 - controls_w) / 2.0);
                                     
                                     let mut btn_style = (*ctx.style()).clone();
-                                    btn_style.visuals.widgets.inactive.bg_fill = Color32::WHITE;
-                                    btn_style.visuals.widgets.hovered.bg_fill = Color32::from_gray(235);
-                                    btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                    // MATCHING APP BUTTON COLORS: 
+                                    btn_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
+                                    btn_style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
+                                    btn_style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
                                     ui.style_mut().visuals = btn_style.visuals;
 
                                     let mut current_speed = state.playback_speed;
@@ -739,7 +742,7 @@ impl<'a> UI<'a> {
                                     
                                     ui.add_space(16.0);
 
-                                    if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(BUTTON_COLOR))).clicked() {
+                                    if ui.add_sized([60.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(BUTTON_COLOR))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() - 10.0).max(0.0);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
                                         if let Some(handle) = &audio_handle {
@@ -749,9 +752,10 @@ impl<'a> UI<'a> {
                                     
                                     ui.add_space(16.0);
 
+                                    // Made playback button size look better (wider and rounded well)
                                     let dur_secs = state.duration.map(|d| d.as_secs_f32()).unwrap_or(0.0);
                                     let icon = if state.is_playing { "⏸" } else { "▶" };
-                                    if ui.add_sized([90.0, 75.0], egui::Button::new(egui::RichText::new(icon).size(36.0).color(BUTTON_COLOR))).clicked() {
+                                    if ui.add_sized([75.0, 60.0], egui::Button::new(egui::RichText::new(icon).size(30.0).color(BUTTON_COLOR))).clicked() {
                                         if state.is_playing {
                                             state.sink.pause();
                                             state.is_playing = false;
@@ -770,7 +774,7 @@ impl<'a> UI<'a> {
                                     
                                     ui.add_space(16.0);
 
-                                    if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(BUTTON_COLOR))).clicked() {
+                                    if ui.add_sized([60.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(BUTTON_COLOR))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() + 10.0).min(dur_secs);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
                                         if let Some(handle) = &audio_handle {
@@ -865,7 +869,6 @@ impl<'a> UI<'a> {
                                                 };
 
                                                 ui.vertical(|ui| {
-                                                    // Fix: use the correct width for the slider explicitly 
                                                     let slider_w = ui.available_width();
                                                     let mut slider_style = (*ctx.style()).clone();
                                                     slider_style.visuals.widgets.inactive.bg_fill = Color32::from_white_alpha(50);
@@ -877,7 +880,7 @@ impl<'a> UI<'a> {
                                                     ui.set_style(slider_style);
                                                     
                                                     let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
-                                                    let resp = ui.add(slider); // Removed add_sized to let style formatting handle width accurately
+                                                    let resp = ui.add(slider); 
                                                     
                                                     if resp.changed() { state.current_time = pos_secs; }
                                                     if resp.drag_stopped() { state.seek(pos_secs, &audio_handle); }
@@ -886,13 +889,15 @@ impl<'a> UI<'a> {
 
                                                     ui.horizontal(|ui| {
                                                         let mut btn_style = (*ctx.style()).clone();
-                                                        btn_style.visuals.widgets.inactive.bg_fill = Color32::WHITE; // WHITE BACKGROUND
-                                                        btn_style.visuals.widgets.hovered.bg_fill = Color32::from_gray(235);
+                                                        // IN VIDEO PLAYER: Match the SECONDARY_BUTTON_BG logic for the bottom controls
+                                                        btn_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG; 
+                                                        btn_style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
                                                         btn_style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
                                                         ui.style_mut().visuals = btn_style.visuals;
 
                                                         let icon = if state.is_playing { "⏸" } else { "▶" };
-                                                        if ui.add_sized([56.0, 56.0], egui::Button::new(egui::RichText::new(icon).size(32.0).color(BUTTON_COLOR))).clicked() {
+                                                        // Styled playback button
+                                                        if ui.add_sized([64.0, 48.0], egui::Button::new(egui::RichText::new(icon).size(28.0).color(BUTTON_COLOR))).clicked() {
                                                             state.is_playing = !state.is_playing;
                                                             if let Some(sink) = &state.audio_sink {
                                                                 if state.is_playing { sink.play(); } else { sink.pause(); }
