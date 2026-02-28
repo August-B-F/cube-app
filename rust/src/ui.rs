@@ -18,7 +18,6 @@ impl<'a> UI<'a> {
     }
 
     pub fn render(&mut self, ctx: &egui::Context) {
-        // Global style: no grey button backgrounds anywhere
         let mut style = (*ctx.style()).clone();
         style.visuals.window_fill = BACKGROUND_COLOR;
         style.visuals.panel_fill = BACKGROUND_COLOR;
@@ -31,6 +30,12 @@ impl<'a> UI<'a> {
         style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
         style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
         style.visuals.widgets.active.bg_stroke = Stroke::NONE;
+        
+        // Hide scrollbars globally so they don't appear in touch interfaces
+        style.spacing.scroll.bar_width = 0.0;
+        style.spacing.scroll.handle_min_length = 0.0;
+        style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+        
         ctx.set_style(style);
 
         if self.app.show_results {
@@ -532,14 +537,12 @@ impl<'a> UI<'a> {
                                     ui.add_space(34.0);
                                     ui.horizontal(|ui| {
                                         ui.add_space(120.0);
-                                        // Just the page number, buttons removed
                                         ui.label(egui::RichText::new(format!("Page {} / {}", page + 1, total)).size(22.0).strong().color(SECONDARY_TEXT_COLOR));
                                     });
                                     ui.add_space(20.0);
                                 });
 
                                 if ui.ui_contains_pointer() {
-                                    // Treat any vertical scrolling as zoom instead of panning
                                     let scroll_delta = ctx.input(|i| i.raw_scroll_delta.y);
                                     if scroll_delta.abs() > 0.1 {
                                         pdf_zoom_delta += scroll_delta * 0.005; 
@@ -562,7 +565,6 @@ impl<'a> UI<'a> {
                                         let aspect = tex.size()[0] as f32 / tex.size()[1] as f32;
                                         let display_width = display_height * aspect;
                                         
-                                        // Properly center the image if it's smaller than the screen width
                                         let w_avail = ui.available_width();
                                         ui.horizontal(|ui| {
                                             if display_width < w_avail {
@@ -690,7 +692,6 @@ impl<'a> UI<'a> {
                     }
                 }
 
-                // Raised maximum zoom bound to 12.0
                 if pdf_zoom_delta != 0.0 {
                     self.app.pdf_zoom = (self.app.pdf_zoom + pdf_zoom_delta).clamp(0.5, 12.0);
                 }
