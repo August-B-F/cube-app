@@ -907,55 +907,77 @@ impl<'a> UI<'a> {
                                                             .size(24.0).strong().color(Color32::WHITE));
                                                             
                                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                                            let mut combo_style = (*ctx.style()).clone();
-                                                            // Force the popup background to pure white
-                                                            combo_style.visuals.window_fill = Color32::WHITE;
-                                                            combo_style.visuals.window_stroke = Stroke::new(1.0, Color32::from_gray(200));
-                                                            combo_style.visuals.window_rounding = Rounding::same(16.0);
+                                                            let speed_id = Id::new("vid_speed_popup");
+                                                            let mut is_speed_open = ctx.data(|d| d.get_temp::<bool>(speed_id).unwrap_or(false));
                                                             
-                                                            // Widget styling for the closed ComboBox and popup items
-                                                            for state in [
-                                                                &mut combo_style.visuals.widgets.inactive,
-                                                                &mut combo_style.visuals.widgets.hovered,
-                                                                &mut combo_style.visuals.widgets.active,
-                                                                &mut combo_style.visuals.widgets.open,
-                                                                &mut combo_style.visuals.widgets.noninteractive,
-                                                            ] {
-                                                                state.rounding = Rounding::same(16.0);
-                                                                state.bg_stroke = Stroke::NONE;
+                                                            let (btn_rect, btn_resp) = ui.allocate_exact_size(egui::vec2(100.0, 64.0), Sense::click());
+                                                            if btn_resp.clicked() {
+                                                                is_speed_open = !is_speed_open;
+                                                                ctx.data_mut(|d| d.insert_temp(speed_id, is_speed_open));
                                                             }
-                                                            combo_style.visuals.widgets.inactive.bg_fill = Color32::WHITE;
-                                                            combo_style.visuals.widgets.hovered.bg_fill = Color32::from_gray(230);
-                                                            combo_style.visuals.widgets.active.bg_fill = Color32::from_gray(200);
-                                                            combo_style.visuals.widgets.open.bg_fill = Color32::WHITE;
-                                                            combo_style.visuals.widgets.noninteractive.bg_fill = Color32::WHITE;
                                                             
-                                                            // Fix the selected item color in the popup list
-                                                            combo_style.visuals.selection.bg_fill = Color32::from_gray(220);
-                                                            combo_style.visuals.selection.stroke = Stroke::NONE;
-                                                            
-                                                            combo_style.spacing.interact_size = egui::vec2(100.0, 64.0);
-                                                            combo_style.spacing.button_padding = egui::vec2(20.0, 19.0);
-                                                            combo_style.spacing.item_spacing = egui::vec2(16.0, 16.0);
-                                                            ui.set_style(combo_style);
+                                                            if is_speed_open && ctx.input(|i| i.pointer.any_pressed()) && !btn_resp.clicked() {
+                                                                is_speed_open = false;
+                                                                ctx.data_mut(|d| d.insert_temp(speed_id, is_speed_open));
+                                                            }
 
-                                                            let mut current_speed = state.playback_speed;
-                                                            #[allow(deprecated)]
-                                                            egui::ComboBox::from_id_source("vid_speed")
-                                                                .width(100.0) // Even bigger target
-                                                                .selected_text(egui::RichText::new(format!("{}x", current_speed)).color(BUTTON_COLOR).size(26.0).strong())
-                                                                .show_ui(ui, |ui| {
-                                                                    ui.style_mut().visuals.override_text_color = Some(BUTTON_COLOR);
-                                                                    ui.selectable_value(&mut current_speed, 0.5, egui::RichText::new("0.5x").size(24.0));
-                                                                    ui.selectable_value(&mut current_speed, 1.0, egui::RichText::new("1.0x").size(24.0));
-                                                                    ui.selectable_value(&mut current_speed, 2.0, egui::RichText::new("2.0x").size(24.0));
-                                                                    ui.selectable_value(&mut current_speed, 3.0, egui::RichText::new("3.0x").size(24.0));
-                                                                });
-                                                            if current_speed != state.playback_speed {
-                                                                state.playback_speed = current_speed;
-                                                                if let Some(sink) = &state.audio_sink {
-                                                                    sink.set_speed(current_speed);
-                                                                }
+                                                            let anim = ctx.animate_bool_with_time(speed_id.with("anim"), is_speed_open, 0.2);
+
+                                                            let bg = if btn_resp.hovered() || is_speed_open { Color32::from_gray(245) } else { Color32::WHITE };
+                                                            ui.painter().rect_filled(btn_rect, Rounding::same(16.0), bg);
+                                                            ui.painter().text(
+                                                                btn_rect.center(),
+                                                                egui::Align2::CENTER_CENTER,
+                                                                format!("{}x", state.playback_speed),
+                                                                egui::FontId::proportional(26.0),
+                                                                BUTTON_COLOR,
+                                                            );
+
+                                                            if anim > 0.0 {
+                                                                egui::Area::new(speed_id.with("area"))
+                                                                    .order(egui::Order::Tooltip)
+                                                                    .fixed_pos(btn_rect.left_top() - egui::vec2(0.0, 16.0 + 260.0 * anim))
+                                                                    .show(ctx, |ui| {
+                                                                        ui.multiply_opacity(anim);
+                                                                        egui::Frame::none()
+                                                                            .fill(Color32::WHITE)
+                                                                            .rounding(Rounding::same(16.0))
+                                                                            .shadow(egui::epaint::Shadow {
+                                                                                offset: egui::vec2(0.0, 4.0),
+                                                                                blur: 16.0,
+                                                                                spread: 0.0,
+                                                                                color: Color32::from_black_alpha(40),
+                                                                            })
+                                                                            .inner_margin(Margin::same(8.0))
+                                                                            .show(ui, |ui| {
+                                                                                ui.set_width(84.0);
+                                                                                let speeds = [3.0, 2.0, 1.0, 0.5];
+                                                                                for &s in &speeds {
+                                                                                    let (s_rect, s_resp) = ui.allocate_exact_size(egui::vec2(84.0, 56.0), Sense::click());
+                                                                                    let s_bg = if s_resp.hovered() { Color32::from_gray(230) } else if state.playback_speed == s { Color32::from_gray(245) } else { Color32::TRANSPARENT };
+                                                                                    ui.painter().rect_filled(s_rect, Rounding::same(12.0), s_bg);
+                                                                                    
+                                                                                    let text_color = if state.playback_speed == s || s_resp.hovered() { BUTTON_COLOR } else { SECONDARY_TEXT_COLOR };
+                                                                                    
+                                                                                    ui.painter().text(
+                                                                                        s_rect.center(),
+                                                                                        egui::Align2::CENTER_CENTER,
+                                                                                        format!("{}x", s),
+                                                                                        egui::FontId::proportional(24.0),
+                                                                                        text_color,
+                                                                                    );
+                                                                                    
+                                                                                    if s_resp.clicked() {
+                                                                                        state.playback_speed = s;
+                                                                                        if let Some(sink) = &state.audio_sink {
+                                                                                            sink.set_speed(s);
+                                                                                        }
+                                                                                        is_speed_open = false;
+                                                                                        ctx.data_mut(|d| d.insert_temp(speed_id, is_speed_open));
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                    });
                                                             }
                                                         });
                                                     });
