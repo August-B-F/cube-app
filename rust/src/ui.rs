@@ -468,7 +468,6 @@ impl<'a> UI<'a> {
                 .show(ctx, |ui| {
                     if Self::icon_btn(ui, &back_tex, 56.0, SECONDARY_BUTTON_BG, 12.0) {
                         use crate::file_handler::FileContent;
-                        // Cleanly stop any running media when going back
                         if let Some(FileContent::Video(child_arc)) = &self.app.current_file {
                             if let Ok(mut child) = child_arc.lock() {
                                 let _ = child.kill();
@@ -477,7 +476,6 @@ impl<'a> UI<'a> {
                         } else if let Some(FileContent::Audio(state)) = &self.app.current_file {
                             state.sink.stop();
                         }
-
                         self.app.show_results = false;
                         self.app.current_file = None;
                         self.app.pdf_page = 0;
@@ -494,38 +492,43 @@ impl<'a> UI<'a> {
                     }
                 });
 
-            ui.vertical_centered(|ui| {
-                if self.app.is_loading {
+            if self.app.is_loading {
+                ui.vertical_centered(|ui| {
                     ui.add_space(ui.available_height() / 2.0);
                     ui.spinner();
-                } else {
-                    let page = self.app.pdf_page;
-                    let mut prev = false;
-                    let mut next = false;
+                });
+            } else {
+                let page = self.app.pdf_page;
+                let mut prev = false;
+                let mut next = false;
+                let mut pdf_zoom_delta = 0.0;
 
-                    let mut pdf_zoom_delta = 0.0;
-
-                    if let Some(content) = &mut self.app.current_file {
-                        use crate::file_handler::FileContent;
-                        match content {
-                            FileContent::Text(t) => {
+                if let Some(content) = &mut self.app.current_file {
+                    use crate::file_handler::FileContent;
+                    match content {
+                        FileContent::Text(t) => {
+                            ui.vertical_centered(|ui| {
                                 egui::ScrollArea::vertical().show(ui, |ui| {
                                     ui.add_space(100.0);
                                     ui.label(egui::RichText::new(t.as_str()).size(20.0).color(PRIMARY_TEXT_COLOR));
                                 });
-                            }
-                            FileContent::Image(tex) => {
+                            });
+                        }
+                        FileContent::Image(tex) => {
+                            ui.vertical_centered(|ui| {
                                 ui.add_space(80.0);
                                 let a = ui.available_size() - Vec2::new(20.0, 20.0);
                                 let handle = tex.clone();
                                 ui.add(egui::Image::new(&handle).max_width(a.x).max_height(a.y));
-                            }
+                            });
+                        }
+                        
+                        // ---- DYNAMIC PDF VIEWER ----
+                        FileContent::Pdf(pdf_state) => {
+                            let total = pdf_state.total_pages;
                             
-                            // ---- DYNAMIC PDF VIEWER ----
-                            FileContent::Pdf(pdf_state) => {
-                                let total = pdf_state.total_pages;
-                                
-                                if total > 0 {
+                            if total > 0 {
+                                ui.vertical_centered(|ui| {
                                     ui.add_space(34.0);
                                     ui.horizontal(|ui| {
                                         ui.add_space(120.0);
@@ -534,70 +537,82 @@ impl<'a> UI<'a> {
                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                             ui.add_space(120.0);
                                             let mut style = (*ctx.style()).clone();
-                                            style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
-                                            style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
-                                            style.visuals.widgets.inactive.rounding = Rounding::same(8.0);
+                                            style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
+                                            style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                                            style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
                                             ui.style_mut().visuals = style.visuals;
 
-                                            if ui.add_sized([44.0, 44.0], egui::Button::new(egui::RichText::new("➕").size(24.0))).clicked() {
+                                            if ui.add_sized([50.0, 50.0], egui::Button::new(egui::RichText::new("➕").size(24.0).color(Color32::WHITE))).clicked() {
                                                 pdf_zoom_delta += 0.25;
                                             }
                                             ui.add_space(10.0);
-                                            if ui.add_sized([44.0, 44.0], egui::Button::new(egui::RichText::new("➖").size(24.0))).clicked() {
+                                            if ui.add_sized([50.0, 50.0], egui::Button::new(egui::RichText::new("➖").size(24.0).color(Color32::WHITE))).clicked() {
                                                 pdf_zoom_delta -= 0.25;
                                             }
                                         });
                                     });
-
                                     ui.add_space(20.0);
+                                });
 
-                                    // Let egui handle trackpad/wheel zoom gracefully via ctx
-                                    if ui.ui_contains_pointer() {
-                                        let scroll_delta = ctx.input(|i| i.raw_scroll_delta.y);
-                                        if ctx.input(|i| i.modifiers.ctrl) && scroll_delta.abs() > 0.1 {
-                                            pdf_zoom_delta += scroll_delta * 0.005; // smooth trackpad zoom
-                                        }
+                                if ui.ui_contains_pointer() {
+                                    let scroll_delta = ctx.input(|i| i.raw_scroll_delta.y);
+                                    if ctx.input(|i| i.modifiers.ctrl) && scroll_delta.abs() > 0.1 {
+                                        pdf_zoom_delta += scroll_delta * 0.005; 
                                     }
-
-                                    // Fetch texture explicitly for the current zoom/page
-                                    let current_zoom = self.app.pdf_zoom;
-                                    let tex_opt = pdf_state.get_page(ctx, page, current_zoom);
-
-                                    egui::ScrollArea::both()
-                                        .auto_shrink([false, false])
-                                        .max_height(ui.available_height() - 100.0)
-                                        .show(ui, |ui| {
-                                        if let Some(tex) = tex_opt {
-                                            // The image dimensions physically adapt to zoom, allowing panning in ScrollArea
-                                            let display_height = (ctx.screen_rect().height() - 200.0) * current_zoom;
-                                            let aspect = tex.size()[0] as f32 / tex.size()[1] as f32;
-                                            let display_width = display_height * aspect;
-                                            
-                                            ui.add(egui::Image::new(&tex).fit_to_exact_size(egui::vec2(display_width, display_height)));
-                                        } else {
-                                            ui.centered_and_justified(|ui| { ui.spinner(); });
-                                        }
-                                    });
-
-                                    egui::Area::new(Id::new("pdf_nav"))
-                                        .order(egui::Order::Foreground)
-                                        .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
-                                        .show(ctx, |ui| {
-                                            ui.horizontal(|ui| {
-                                                if page > 0 {
-                                                    if Self::icon_btn(ui, &cl_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { prev = true; }
-                                                } else { ui.add_space(68.0); }
-                                                ui.add_space(30.0);
-                                                if page < total - 1 {
-                                                    if Self::icon_btn(ui, &cr_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { next = true; }
-                                                }
-                                            });
-                                        });
+                                    let zoom_delta = ctx.input(|i| i.zoom_delta());
+                                    if zoom_delta != 1.0 {
+                                        pdf_zoom_delta += zoom_delta - 1.0;
+                                    }
                                 }
+
+                                let current_zoom = self.app.pdf_zoom;
+                                let tex_opt = pdf_state.get_page(ctx, page, current_zoom);
+
+                                egui::ScrollArea::both()
+                                    .auto_shrink([false, false])
+                                    .max_height(ui.available_height() - 100.0)
+                                    .show(ui, |ui| {
+                                    if let Some(tex) = tex_opt {
+                                        let display_height = (ctx.screen_rect().height() - 200.0) * current_zoom;
+                                        let aspect = tex.size()[0] as f32 / tex.size()[1] as f32;
+                                        let display_width = display_height * aspect;
+                                        
+                                        // Properly center the image if it's smaller than the screen width
+                                        let w_avail = ui.available_width();
+                                        ui.horizontal(|ui| {
+                                            if display_width < w_avail {
+                                                ui.add_space((w_avail - display_width) / 2.0);
+                                            }
+                                            ui.add(egui::Image::new(&tex).fit_to_exact_size(egui::vec2(display_width, display_height)));
+                                        });
+                                    } else {
+                                        ui.vertical_centered(|ui| { 
+                                            ui.add_space(ui.available_height() / 2.0 - 100.0);
+                                            ui.spinner(); 
+                                        });
+                                    }
+                                });
+
+                                egui::Area::new(Id::new("pdf_nav"))
+                                    .order(egui::Order::Foreground)
+                                    .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
+                                    .show(ctx, |ui| {
+                                        ui.horizontal(|ui| {
+                                            if page > 0 {
+                                                if Self::icon_btn(ui, &cl_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { prev = true; }
+                                            } else { ui.add_space(68.0); }
+                                            ui.add_space(30.0);
+                                            if page < total - 1 {
+                                                if Self::icon_btn(ui, &cr_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { next = true; }
+                                            }
+                                        });
+                                    });
                             }
-                            
-                            // ---- AUDIO PLAYER ----
-                            FileContent::Audio(state) => {
+                        }
+                        
+                        // ---- AUDIO PLAYER ----
+                        FileContent::Audio(state) => {
+                            ui.vertical_centered(|ui| {
                                 ui.add_space(ui.available_height() / 3.0);
                                 ui.label(egui::RichText::new("🎵 Playing Audio").size(40.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(10.0);
@@ -614,7 +629,7 @@ impl<'a> UI<'a> {
                                     ui.style_mut().visuals = style.visuals;
 
                                     if ui.add_sized([80.0, 75.0], egui::Button::new(egui::RichText::new("⏪ 10s").size(20.0).color(Color32::WHITE))).clicked() {
-                                        // TODO: implement seek backward if duration/pos logic added to AudioState
+                                        // TODO: implement seek backward
                                     }
 
                                     ui.add_space(10.0);
@@ -637,15 +652,16 @@ impl<'a> UI<'a> {
                                         // TODO: implement seek forward
                                     }
                                 });
-                            }
-                            
-                            // ---- VIDEO MANAGEMENT ----
-                            FileContent::Video(child_arc) => {
+                            });
+                        }
+                        
+                        // ---- VIDEO MANAGEMENT ----
+                        FileContent::Video(child_arc) => {
+                            ui.vertical_centered(|ui| {
                                 ui.add_space(ui.available_height() / 3.0);
                                 ui.label(egui::RichText::new("🎬 Video Playing in External Window").size(32.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(40.0);
 
-                                // Check if video window closed itself
                                 let mut exited = false;
                                 if let Ok(mut child) = child_arc.lock() {
                                     if let Ok(Some(_)) = child.try_wait() {
@@ -675,25 +691,27 @@ impl<'a> UI<'a> {
                                         }
                                     });
                                 }
-                            }
+                            });
+                        }
 
-                            FileContent::Html(h) => {
+                        FileContent::Html(h) => {
+                            ui.vertical_centered(|ui| {
                                 egui::ScrollArea::vertical().show(ui, |ui| {
                                     ui.add_space(100.0);
                                     ui.label(egui::RichText::new(h.as_str()).size(16.0).color(PRIMARY_TEXT_COLOR));
                                 });
-                            }
+                            });
                         }
                     }
-
-                    if pdf_zoom_delta != 0.0 {
-                        self.app.pdf_zoom = (self.app.pdf_zoom + pdf_zoom_delta).clamp(0.5, 5.0);
-                    }
-
-                    if prev { self.app.pdf_page -= 1; }
-                    if next { self.app.pdf_page += 1; }
                 }
-            });
+
+                if pdf_zoom_delta != 0.0 {
+                    self.app.pdf_zoom = (self.app.pdf_zoom + pdf_zoom_delta).clamp(0.5, 5.0);
+                }
+
+                if prev { self.app.pdf_page -= 1; }
+                if next { self.app.pdf_page += 1; }
+            }
         });
     }
 

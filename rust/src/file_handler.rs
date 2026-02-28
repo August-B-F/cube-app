@@ -45,9 +45,7 @@ pub struct PdfState {
     pub path: PathBuf,
     pub total_pages: usize,
     pub cached_pages: HashMap<(usize, u32), TextureHandle>,
-    // Track requests in flight so we don't spawn multiple threads for the same page/zoom
     pub pending_requests: std::collections::HashSet<(usize, u32)>,
-    // Channel for receiving finished textures from background threads
     pub rx: std::sync::mpsc::Receiver<((usize, u32), ColorImage)>,
     pub tx: std::sync::mpsc::Sender<((usize, u32), ColorImage)>,
 }
@@ -68,7 +66,6 @@ impl PdfState {
     pub fn get_page(&mut self, ctx: &egui::Context, page: usize, zoom: f32) -> Option<TextureHandle> {
         let zoom_level = (zoom * 10.0).round() as u32;
 
-        // Drain any newly completed renders
         while let Ok(((p, z), color_image)) = self.rx.try_recv() {
             let texture = ctx.load_texture(
                 format!("pdf_p{}_z{}", p, z), 
@@ -77,29 +74,30 @@ impl PdfState {
             );
             self.cached_pages.insert((p, z), texture);
             self.pending_requests.remove(&(p, z));
-            ctx.request_repaint(); // force a redraw now that we have the image
+            ctx.request_repaint();
         }
 
-        // Return cached texture if we have it
         if let Some(tex) = self.cached_pages.get(&(page, zoom_level)) {
             return Some(tex.clone());
         }
 
-        // Only start a render if we aren't already rendering this exact combination
         if !self.pending_requests.contains(&(page, zoom_level)) {
             self.pending_requests.insert((page, zoom_level));
             
             let tx = self.tx.clone();
             let path = self.path.clone();
-            let dpi = (150.0 * zoom).clamp(150.0, 600.0) as u32;
+            
+            // Limit the maximum pixel dimension to 8192 to prevent OpenGL texture size crashes
+            // Base resolution ~1500px on the longest edge at 1.0 zoom.
+            let max_pixels = (1500.0 * zoom).clamp(1000.0, 8192.0) as u32;
             let ctx_clone = ctx.clone();
 
             std::thread::spawn(move || {
-                // By omitting the output prefix, pdftoppm outputs the jpeg directly to stdout
                 let output = Command::new("pdftoppm")
                     .arg("-jpeg")
-                    .arg("-r")
-                    .arg(dpi.to_string())
+                    .arg("-scale-to")
+                    .arg(max_pixels.to_string())
+                    .arg("-cropbox") // Crop the white margins of the PDF
                     .arg("-f")
                     .arg((page + 1).to_string())
                     .arg("-l")
@@ -109,17 +107,13 @@ impl PdfState {
 
                 if let Ok(output) = output {
                     if output.status.success() {
-                        // Read the image directly from memory, skipping disk I/O completely
                         if let Ok(image) = image::load_from_memory(&output.stdout) {
                             let size = [image.width() as _, image.height() as _];
                             let image_buffer = image.to_rgba8();
                             let pixels = image_buffer.as_flat_samples();
                             let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
                             
-                            // Send it back to main thread
                             let _ = tx.send(((page, zoom_level), color_image));
-                            
-                            // Tell UI to wake up and process the channel
                             ctx_clone.request_repaint();
                         }
                     }
@@ -127,9 +121,7 @@ impl PdfState {
             });
         }
         
-        // If we don't have the exact zoom, try to fall back to ANY zoom level we have for this page
-        // while we wait for the correct one to generate. This prevents flickering/spinners when zooming.
-        for fallback_zoom in [10, 15, 20, 25, 30, 5, 8] { // Common zoom levels
+        for fallback_zoom in [10, 15, 20, 25, 30, 5, 8] {
             if let Some(tex) = self.cached_pages.get(&(page, fallback_zoom)) {
                 return Some(tex.clone());
             }
