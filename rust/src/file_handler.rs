@@ -15,6 +15,9 @@ pub struct AudioState {
     pub is_playing: bool,
     pub path: PathBuf,
     pub duration: Option<Duration>,
+    pub playback_speed: f32,
+    pub last_update: std::time::Instant,
+    pub current_pos: Duration,
 }
 
 impl AudioState {
@@ -25,6 +28,7 @@ impl AudioState {
         self.sink.stop();
         
         let new_sink = rodio::Sink::try_new(handle).map_err(|e| e.to_string())?;
+        new_sink.set_speed(self.playback_speed);
         
         use rodio::Source;
         let skipped = decoder.skip_duration(target);
@@ -37,6 +41,8 @@ impl AudioState {
         }
         
         self.sink = Arc::new(new_sink);
+        self.current_pos = target;
+        self.last_update = std::time::Instant::now();
         Ok(())
     }
 }
@@ -95,8 +101,6 @@ impl PdfState {
             let ctx_clone = ctx.clone();
             let latest_req_clone = self.latest_request.clone();
 
-            // Pushing the max limits of OpenGL texture support (usually 16384). 
-            // This is double what we had before, ensuring massive crispness at 10x zoom.
             let max_pixels = (2400.0 * zoom).clamp(2400.0, 16000.0) as u32;
 
             std::thread::spawn(move || {
@@ -222,14 +226,26 @@ impl FileHandler {
             "mp4" => {
                 let path_str = path.to_string_lossy().to_string();
                 
-                let child = Command::new("mpv")
-                    .arg("--fs")
-                    .arg("--ontop")
-                    .arg("--no-terminal")
-                    .arg("--force-window=immediate")
+                // Fallback chain: vlc -> ffplay -> default OS handler (xdg-open)
+                // This prevents "mpv file not found" crashes if mpv isn't installed.
+                let child = Command::new("vlc")
+                    .arg("--fullscreen")
+                    .arg("--play-and-exit")
                     .arg(&path_str)
                     .spawn()
-                    .map_err(|e| format!("Failed to start mpv: {}", e))?;
+                    .or_else(|_| {
+                        Command::new("ffplay")
+                            .arg("-autoexit")
+                            .arg("-fs")
+                            .arg(&path_str)
+                            .spawn()
+                    })
+                    .or_else(|_| {
+                        Command::new("xdg-open")
+                            .arg(&path_str)
+                            .spawn()
+                    })
+                    .map_err(|e| format!("Unable to open system video player: {}", e))?;
                 
                 Ok(FileContent::Video(Arc::new(Mutex::new(child))))
             }
@@ -250,6 +266,9 @@ impl FileHandler {
                         is_playing: true,
                         path: path.to_path_buf(),
                         duration,
+                        playback_speed: 1.0,
+                        last_update: std::time::Instant::now(),
+                        current_pos: Duration::ZERO,
                     }))
                 } else {
                     Err("Audio output not available".into())
