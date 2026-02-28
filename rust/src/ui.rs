@@ -370,10 +370,12 @@ impl<'a> UI<'a> {
                                         egui::FontId::proportional(22.0),
                                         PRIMARY_TEXT_COLOR,
                                     );
+                                    // Convert stored UTC to Local for display
+                                    let local_time = item.timestamp.with_timezone(&chrono::Local);
                                     ui.painter().text(
                                         row_rect.right_center() - egui::vec2(12.0, 0.0),
                                         egui::Align2::RIGHT_CENTER,
-                                        item.timestamp.format("%H:%M:%S").to_string(),
+                                        local_time.format("%H:%M:%S").to_string(),
                                         egui::FontId::proportional(18.0),
                                         SECONDARY_TEXT_COLOR,
                                     );
@@ -575,8 +577,8 @@ impl<'a> UI<'a> {
                                         if let Some(tex) = pages.get(page) {
                                             let aspect = tex.size()[0] as f32 / tex.size()[1] as f32;
                                             // Default scale fills screen vertically minus margins. Then multiply by zoom factor.
-                                            let mut display_height = (ctx.screen_rect().height() - 200.0) * self.app.pdf_zoom;
-                                            let mut display_width = display_height * aspect;
+                                            let display_height = (ctx.screen_rect().height() - 200.0) * self.app.pdf_zoom;
+                                            let display_width = display_height * aspect;
                                             
                                             // FIX: pass a cloned handle
                                             let handle = tex.clone();

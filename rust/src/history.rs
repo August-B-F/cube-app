@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Utc};
 use std::fs;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HistoryItem {
     pub code: String,
-    pub timestamp: DateTime<Local>,
+    pub timestamp: DateTime<Utc>,
     pub result: String,
 }
 
