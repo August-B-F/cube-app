@@ -695,7 +695,7 @@ impl<'a> UI<'a> {
                                         ui.style_mut().visuals = btn_style.visuals;
 
                                         let mut current_speed = state.playback_speed;
-                                        egui::ComboBox::from_id_source("audio_speed")
+                                        egui::ComboBox::from_id_salt("audio_speed")
                                             .width(70.0)
                                             .selected_text(format!("{}x", current_speed))
                                             .show_ui(ui, |ui| {

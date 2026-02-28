@@ -183,21 +183,20 @@ impl CubeApp {
             This content is typically loaded from the specific project folder.\n\
             It includes metadata, historical context, and technical details related to the item.\n\n\
             Project ID: {}\n\
-            Category: {}\n\
-            Language: {:?}",
-            code, category, code, category, self.language
+            Category: {}",
+            code, category, code, category
         );
         self.explanation_content = content;
         self.show_explanation = true;
     }
 
-    pub fn open_history_project(&mut self, ctx: &egui::Context, code: String) {
+    pub fn open_history_project(&mut self, ctx: &eframe::egui::Context, code: String) {
         self.current_code = code.clone();
         self.show_history = false;
         self.load_project(ctx, &code);
     }
 
-    pub fn scan_code(&mut self, ctx: &egui::Context) {
+    pub fn scan_code(&mut self, ctx: &eframe::egui::Context) {
         let mut code = String::new();
         for row in 0..5 {
             for col in 0..5 {
@@ -210,13 +209,13 @@ impl CubeApp {
         self.load_project(ctx, &hex_code);
     }
 
-    fn load_project(&mut self, ctx: &egui::Context, code: &str) {
+    fn load_project(&mut self, ctx: &eframe::egui::Context, code: &str) {
         self.is_loading = true;
         self.show_results = true;
         self.pdf_page = 0;
         self.pdf_zoom = 1.0;
         
-        let file_path = crate::database::find_file(code);
+        let file_path = crate::database::Database::find_file(code);
         if let Some(path) = file_path {
             match self.file_handler.load_file(ctx, &path) {
                 Ok(content) => {
