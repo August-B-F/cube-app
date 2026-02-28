@@ -95,10 +95,7 @@ impl PdfState {
             let ctx_clone = ctx.clone();
 
             std::thread::spawn(move || {
-                let temp_dir = std::env::temp_dir().join("cube_pdf_extract_dyn");
-                let _ = std::fs::create_dir_all(&temp_dir);
-                let out_prefix = temp_dir.join(format!("page_{}_{}", page, dpi));
-                
+                // By omitting the output prefix, pdftoppm outputs the jpeg directly to stdout
                 let output = Command::new("pdftoppm")
                     .arg("-jpeg")
                     .arg("-r")
@@ -108,32 +105,22 @@ impl PdfState {
                     .arg("-l")
                     .arg((page + 1).to_string())
                     .arg(&path)
-                    .arg(&out_prefix)
                     .output();
 
                 if let Ok(output) = output {
                     if output.status.success() {
-                        if let Ok(entries) = std::fs::read_dir(&temp_dir) {
-                            for entry in entries.filter_map(Result::ok) {
-                                let file_path = entry.path();
-                                if file_path.to_string_lossy().contains(out_prefix.file_name().unwrap().to_str().unwrap()) {
-                                    if let Ok(image) = image::open(&file_path) {
-                                        let size = [image.width() as _, image.height() as _];
-                                        let image_buffer = image.to_rgba8();
-                                        let pixels = image_buffer.as_flat_samples();
-                                        let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-                                        
-                                        // Send it back to main thread
-                                        let _ = tx.send(((page, zoom_level), color_image));
-                                        
-                                        // Tell UI to wake up and process the channel
-                                        ctx_clone.request_repaint();
-                                        
-                                        let _ = std::fs::remove_file(file_path);
-                                        break;
-                                    }
-                                }
-                            }
+                        // Read the image directly from memory, skipping disk I/O completely
+                        if let Ok(image) = image::load_from_memory(&output.stdout) {
+                            let size = [image.width() as _, image.height() as _];
+                            let image_buffer = image.to_rgba8();
+                            let pixels = image_buffer.as_flat_samples();
+                            let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+                            
+                            // Send it back to main thread
+                            let _ = tx.send(((page, zoom_level), color_image));
+                            
+                            // Tell UI to wake up and process the channel
+                            ctx_clone.request_repaint();
                         }
                     }
                 }
