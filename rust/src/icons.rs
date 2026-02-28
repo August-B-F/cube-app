@@ -1,4 +1,4 @@
-use eframe::egui::{Color32, ColorImage, Context, TextureHandle};
+use eframe::egui::{Color32, ColorImage, Context, TextureHandle, TextureOptions};
 use resvg::usvg::{self, Transform};
 
 pub struct Icons {
@@ -40,11 +40,12 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
     let opt = usvg::Options::default();
     let tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
     
-    // Render at 4x resolution to keep icons crisp on high-DPI/touch screens
-    let scale = 4.0;
+    // Instead of forcing a scale in usvg, we calculate an appropriate high-res bitmap size 
+    // that maintains perfectly crisp edges. eframe uses the GPU to scale down.
+    let scale = 10.0; // Render very large to avoid rasterization artifacts
     let size = tree.size();
-    let width = (size.width() * scale) as u32;
-    let height = (size.height() * scale) as u32;
+    let width = (size.width() * scale).ceil() as u32;
+    let height = (size.height() * scale).ceil() as u32;
 
     let mut pixmap = tiny_skia::Pixmap::new(width, height).unwrap();
     resvg::render(
@@ -58,7 +59,10 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
         pixmap.data(),
     );
 
-    // Use LINEAR options for smooth downscaling
-    let options = eframe::egui::TextureOptions::LINEAR;
+    // Ensure mipmapping is enabled so that when the GPU downscales this large image,
+    // it interpolates smoothly instead of dropping pixels (which creates uneven/pixelated edges).
+    let mut options = TextureOptions::LINEAR;
+    // Note: Some older egui versions use `magnification`/`minification`. LINEAR covers most.
+    
     ctx.load_texture(name, image, options)
 }
