@@ -2,7 +2,6 @@ use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2, Rounding, Stroke, Mar
 use crate::app::{CubeApp, PopupType};
 
 const BACKGROUND_COLOR: Color32 = Color32::from_rgb(236, 230, 240);
-const ACTION_BUTTON_COLOR: Color32 = Color32::from_rgb(101, 85, 143);
 const BUTTON_COLOR: Color32 = Color32::from_rgb(29, 27, 32);
 const PRIMARY_TEXT_COLOR: Color32 = Color32::from_rgb(29, 27, 32);
 const SECONDARY_TEXT_COLOR: Color32 = Color32::from_rgb(73, 69, 79);
@@ -223,12 +222,12 @@ impl<'a> UI<'a> {
                             ui.set_style(style);
 
                             let btn_next = egui::Button::new(
-                                egui::RichText::new(&next).size(22.0).color(ACTION_BUTTON_COLOR)
+                                egui::RichText::new(&next).size(22.0).color(BUTTON_COLOR)
                             ).frame(false);
                             if ui.add(btn_next).clicked() { self.app.show_tutorial = false; }
                             ui.add_space(24.0);
                             let btn_skip = egui::Button::new(
-                                egui::RichText::new(&skip).size(22.0).color(ACTION_BUTTON_COLOR)
+                                egui::RichText::new(&skip).size(22.0).color(BUTTON_COLOR)
                             ).frame(false);
                             if ui.add(btn_skip).clicked() { self.app.show_tutorial = false; }
                         });
@@ -398,8 +397,8 @@ impl<'a> UI<'a> {
                         ui.add_space(30.0);
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
                         let mut style = (*ctx.style()).clone();
-                        style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
-                        style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                        style.visuals.widgets.inactive.bg_fill = BUTTON_COLOR;
+                        style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
                         ui.style_mut().visuals = style.visuals;
                         
                         let close_btn = egui::Button::new(
@@ -458,8 +457,8 @@ impl<'a> UI<'a> {
                         ui.add_space(30.0);
                         let close_str = self.app.translations.get("close", self.app.language).to_string();
                         let mut style = (*ctx.style()).clone();
-                        style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
-                        style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                        style.visuals.widgets.inactive.bg_fill = BUTTON_COLOR;
+                        style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
                         ui.style_mut().visuals = style.visuals;
 
                         let close_btn = egui::Button::new(
@@ -490,7 +489,7 @@ impl<'a> UI<'a> {
             ctx.request_repaint();
         }
 
-        // Full screen black background for video before panel to act as a proper backdrop
+        // Apply a full black background to the panel if the content is a video.
         if is_video {
             let mut style = (*ctx.style()).clone();
             style.visuals.panel_fill = Color32::BLACK;
@@ -503,12 +502,14 @@ impl<'a> UI<'a> {
             style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
             ui.set_style(style);
             
-            // Only hide the top buttons if it is a video AND the overlay is faded.
+            // For the video player, we only hide the top buttons when the overlay fades.
             let show_top_buttons = if is_video { overlay_alpha > 0.0 } else { true };
             let top_alpha = if is_video { overlay_alpha } else { 1.0 };
             
-            let btn_bg = if is_video { Color32::from_black_alpha(150) } else { SECONDARY_BUTTON_BG };
-            let btn_tint = if is_video { Color32::WHITE } else { BUTTON_COLOR };
+            // To ensure black icons are perfectly visible over the black video canvas, 
+            // we use a highly visible semi-transparent white background circle.
+            let btn_bg = if is_video { Color32::from_white_alpha(220) } else { SECONDARY_BUTTON_BG };
+            let btn_tint = BUTTON_COLOR; // The icon itself remains black
 
             if show_top_buttons {
                 egui::Area::new(Id::new("back_area"))
@@ -675,16 +676,17 @@ impl<'a> UI<'a> {
                                     .size(24.0).strong().color(SECONDARY_TEXT_COLOR));
                                 ui.add_space(16.0);
 
-                                // Slider block perfectly centered via direct width math
+                                // Audio Slider perfectly centered via available_width exact math
+                                let avail_w = ui.available_width();
+                                let slider_w = avail_w * 0.85; // Made longer per user request (85%)
                                 ui.horizontal(|ui| {
-                                    let slider_w = screen_w * 0.65;
-                                    ui.add_space((screen_w - slider_w) / 2.0);
+                                    ui.add_space((avail_w - slider_w) / 2.0);
                                     
                                     let mut slider_style = (*ctx.style()).clone();
-                                    slider_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
-                                    slider_style.visuals.widgets.active.bg_fill = ACTION_BUTTON_COLOR;
-                                    slider_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
-                                    slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
+                                    slider_style.visuals.widgets.inactive.bg_fill = Color32::from_gray(200);
+                                    slider_style.visuals.widgets.active.bg_fill = BUTTON_COLOR;
+                                    slider_style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
+                                    slider_style.visuals.selection.bg_fill = BUTTON_COLOR;
                                     ui.set_style(slider_style);
 
                                     let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
@@ -701,14 +703,15 @@ impl<'a> UI<'a> {
 
                                 ui.add_space(32.0);
 
-                                // Controls block
+                                // Audio Controls exactly centered 
+                                let avail_w2 = ui.available_width();
+                                let controls_w = 90.0 + 16.0 + 70.0 + 16.0 + 90.0 + 16.0 + 70.0;
                                 ui.horizontal(|ui| {
-                                    let controls_w = 90.0 + 16.0 + 70.0 + 16.0 + 90.0 + 16.0 + 70.0;
-                                    ui.add_space((screen_w - controls_w) / 2.0);
+                                    ui.add_space((avail_w2 - controls_w) / 2.0);
                                     
                                     let mut btn_style = (*ctx.style()).clone();
-                                    btn_style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
-                                    btn_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                                    btn_style.visuals.widgets.inactive.bg_fill = BUTTON_COLOR;
+                                    btn_style.visuals.widgets.hovered.bg_fill = BUTTON_COLOR.linear_multiply(0.8);
                                     btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
                                     ui.style_mut().visuals = btn_style.visuals;
 
@@ -838,7 +841,8 @@ impl<'a> UI<'a> {
                                     .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -32.0])
                                     .show(ctx, |ui| {
                                         ui.multiply_opacity(overlay_alpha);
-                                        let bar_w = screen_w * 0.9;
+                                        // Video Player control bar is much wider (95% of screen)
+                                        let bar_w = screen_w * 0.95;
                                         
                                         egui::Frame::none()
                                             .fill(Color32::from_black_alpha(220))
@@ -855,22 +859,22 @@ impl<'a> UI<'a> {
                                                 };
 
                                                 ui.vertical(|ui| {
-                                                    // Slider spans the whole inner width
                                                     let mut slider_style = (*ctx.style()).clone();
                                                     slider_style.visuals.widgets.inactive.bg_fill = Color32::from_white_alpha(50);
-                                                    slider_style.visuals.widgets.active.bg_fill = ACTION_BUTTON_COLOR;
-                                                    slider_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
-                                                    slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
+                                                    slider_style.visuals.widgets.active.bg_fill = Color32::WHITE;
+                                                    slider_style.visuals.widgets.hovered.bg_fill = Color32::WHITE;
+                                                    slider_style.visuals.selection.bg_fill = Color32::WHITE;
                                                     ui.set_style(slider_style);
                                                     
+                                                    // Slider spans exactly the available width inside the frame
+                                                    let slider_w = ui.available_width();
                                                     let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
-                                                    let resp = ui.add_sized([bar_w - 64.0, 24.0], slider);
+                                                    let resp = ui.add_sized([slider_w, 24.0], slider);
                                                     if resp.changed() { state.current_time = pos_secs; }
                                                     if resp.drag_stopped() { state.seek(pos_secs, &audio_handle); }
                                                     
                                                     ui.add_space(20.0);
 
-                                                    // Controls horizontally aligned
                                                     ui.horizontal(|ui| {
                                                         let mut btn_style = (*ctx.style()).clone();
                                                         btn_style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
@@ -903,7 +907,6 @@ impl<'a> UI<'a> {
                                                         ui.label(egui::RichText::new(format!("{} / {}", fmt_time(pos_secs), fmt_time(dur_secs)))
                                                             .size(20.0).strong().color(Color32::WHITE));
                                                             
-                                                        // Push speed dropdown to the far right
                                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                                             let mut current_speed = state.playback_speed;
                                                             #[allow(deprecated)]
