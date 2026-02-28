@@ -13,6 +13,7 @@ pub struct CubeApp {
     pub clicked_history: [Option<usize>; 5],
 
     pub show_tutorial: bool,
+    pub tutorial_step: usize,
     pub show_results: bool,
     pub show_options: bool,
     pub show_history: bool,
@@ -64,6 +65,7 @@ impl CubeApp {
             grid: [[0; 5]; 5],
             clicked_history: [None; 5],
             show_tutorial: true,
+            tutorial_step: 0,
             show_results: false,
             show_options: false,
             show_history: false,
