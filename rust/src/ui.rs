@@ -624,7 +624,6 @@ impl<'a> UI<'a> {
                             }
                         }
                         
-                        // ---- REBUILT AUDIO PLAYER ----
                         FileContent::Audio(state) => {
                             ui.vertical_centered(|ui| {
                                 ui.add_space(ui.available_height() / 4.0);
@@ -633,7 +632,6 @@ impl<'a> UI<'a> {
                                 ui.label(egui::RichText::new(format!("Project: {}", self.app.current_code)).size(20.0).color(SECONDARY_TEXT_COLOR));
                                 ui.add_space(40.0);
 
-                                // Track Time manually (since rodio's pos gets wiped on skips)
                                 let now = std::time::Instant::now();
                                 if state.is_playing {
                                     let dt = now.duration_since(state.last_update);
@@ -654,12 +652,10 @@ impl<'a> UI<'a> {
                                     format!("{:02}:{:02}", s / 60, s % 60)
                                 };
 
-                                // Time Label
                                 ui.label(egui::RichText::new(format!("{} / {}", fmt_time(pos_secs), fmt_time(dur_secs)))
                                     .size(24.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(10.0);
 
-                                // Slider Row
                                 ui.horizontal(|ui| {
                                     ui.add_space(ui.available_width() * 0.15);
                                     
@@ -679,7 +675,7 @@ impl<'a> UI<'a> {
                                     if response.changed() {
                                         state.current_pos = std::time::Duration::from_secs_f32(pos_secs);
                                     }
-                                    if response.drag_released() {
+                                    if response.drag_stopped() {
                                         if let Some(handle) = &audio_handle {
                                             let _ = state.seek(state.current_pos, handle);
                                         }
@@ -688,7 +684,6 @@ impl<'a> UI<'a> {
 
                                 ui.add_space(30.0);
 
-                                // Media Controls Row
                                 ui.horizontal(|ui| {
                                     ui.add_space(ui.available_width() / 2.0 - 180.0);
                                     
@@ -696,9 +691,8 @@ impl<'a> UI<'a> {
                                     btn_style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
                                     btn_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
                                     btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
-                                    ui.style_mut().visuals = btn_style;
+                                    ui.style_mut().visuals = btn_style.visuals;
 
-                                    // Speed Button
                                     let speed_text = format!("{}x", state.playback_speed);
                                     if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new(&speed_text).size(18.0).color(Color32::WHITE))).clicked() {
                                         state.playback_speed = match state.playback_speed {
@@ -711,7 +705,6 @@ impl<'a> UI<'a> {
                                     }
                                     ui.add_space(10.0);
 
-                                    // Rewind
                                     if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(Color32::WHITE))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() - 10.0).max(0.0);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
@@ -721,7 +714,6 @@ impl<'a> UI<'a> {
                                     }
                                     ui.add_space(10.0);
 
-                                    // Play / Pause
                                     let icon = if state.is_playing { "⏸" } else { "▶" };
                                     let btn = egui::Button::new(egui::RichText::new(icon).size(36.0).color(Color32::WHITE));
                                     if ui.add_sized([90.0, 75.0], btn).clicked() {
@@ -742,7 +734,6 @@ impl<'a> UI<'a> {
                                     }
                                     ui.add_space(10.0);
 
-                                    // Forward
                                     if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(Color32::WHITE))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() + 10.0).min(dur_secs);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
@@ -754,7 +745,6 @@ impl<'a> UI<'a> {
                             });
                         }
                         
-                        // ---- UPDATED VIDEO MANAGEMENT ----
                         FileContent::Video(child_arc) => {
                             ui.vertical_centered(|ui| {
                                 ui.add_space(ui.available_height() / 3.0);
@@ -763,9 +753,6 @@ impl<'a> UI<'a> {
                                 ui.label(egui::RichText::new("The video was opened in your system's default media player.").size(20.0).color(SECONDARY_TEXT_COLOR));
                                 ui.add_space(40.0);
 
-                                // We intentionally don't auto-close this screen anymore.
-                                // If `xdg-open` is used, the child exits instantly but the video is still playing in another app.
-                                // This way the user can explicitly click "Close" when they are done.
                                 ui.horizontal(|ui| {
                                     ui.add_space(ui.available_width() / 2.0 - 120.0);
                                     
