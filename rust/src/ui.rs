@@ -24,7 +24,7 @@ impl<'a> UI<'a> {
         style.visuals.panel_fill = BACKGROUND_COLOR;
         style.visuals.override_text_color = Some(PRIMARY_TEXT_COLOR);
         style.visuals.widgets.noninteractive.bg_fill = BACKGROUND_COLOR;
-        // Make all default buttons transparent / borderless
+        
         style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
         style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
         style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
@@ -48,14 +48,12 @@ impl<'a> UI<'a> {
         let exp_anim = ctx.animate_bool_with_time(Id::new("exp_anim"), self.app.show_explanation, 0.25);
         if exp_anim > 0.0 { self.render_explanation(ctx, exp_anim); }
 
-        // Options drawn last = highest z-order
         let opt_anim = ctx.animate_bool_with_time(Id::new("opt_anim"), self.app.show_options, 0.25);
         if opt_anim > 0.0 { self.render_options(ctx, opt_anim); }
 
         self.render_popups(ctx);
     }
 
-    // ─── Helper: draw an icon image button, returns true if clicked ───────────
     fn icon_btn(
         ui: &mut egui::Ui,
         texture: &egui::TextureHandle,
@@ -81,13 +79,11 @@ impl<'a> UI<'a> {
         response.clicked()
     }
 
-    // ─── Grid ─────────────────────────────────────────────────────────────────
     fn render_grid(&mut self, ctx: &egui::Context) {
         let scan_text = self.app.translations.get("scan", self.app.language).to_string();
         let menu_tex = self.app.icons.menu.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Hamburger button – always above everything
             egui::Area::new(Id::new("options_btn_area"))
                 .order(egui::Order::Foreground)
                 .anchor(egui::Align2::RIGHT_TOP, [-50.0, 50.0])
@@ -97,9 +93,8 @@ impl<'a> UI<'a> {
                     }
                 });
 
-            // Perfectly centred grid
-            let grid_w = 5.0 * 100.0 + 4.0 * 30.0; // 620
-            let grid_h = 5.0 * 100.0 + 4.0 * 30.0 + 40.0 + 73.0; // 733
+            let grid_w = 5.0 * 100.0 + 4.0 * 30.0;
+            let grid_h = 5.0 * 100.0 + 4.0 * 30.0 + 40.0 + 73.0;
             let avail = ui.available_size();
             let x_pad = (avail.x - grid_w).max(0.0) / 2.0;
             let y_pad = (avail.y - grid_h).max(0.0) / 2.0;
@@ -129,8 +124,6 @@ impl<'a> UI<'a> {
                                     );
                                     let r = Rect::from_center_size(rect.center(), rect.size() * hover_t);
 
-                                    // Inactive = solid BUTTON_COLOR, Active = transparent bg + border
-                                    // Use BACKGROUND_COLOR for active fill so it matches the panel
                                     let fill = {
                                         let [fr, fg, fb, _] = BUTTON_COLOR.to_array();
                                         let [br, bg_c, bb, _] = BACKGROUND_COLOR.to_array();
@@ -154,7 +147,6 @@ impl<'a> UI<'a> {
 
                     ui.add_space(40.0);
 
-                    // Scan button
                     ui.horizontal(|ui| {
                         ui.add_space((grid_w - 456.0) / 2.0);
                         let (rect, response) = ui.allocate_exact_size(
@@ -179,14 +171,12 @@ impl<'a> UI<'a> {
         });
     }
 
-    // ─── Tutorial ─────────────────────────────────────────────────────────────
     fn render_tutorial(&mut self, ctx: &egui::Context, anim: f32) {
         let welcome = self.app.translations.get("welcome", self.app.language).to_string();
         let tutorial = self.app.translations.get("tutorial", self.app.language).to_string();
         let skip    = self.app.translations.get("skip",     self.app.language).to_string();
         let next    = self.app.translations.get("next",     self.app.language).to_string();
 
-        // Dim background but leave content visible
         egui::Area::new(Id::new("tut_bg"))
             .order(egui::Order::Foreground)
             .fixed_pos(Pos2::ZERO)
@@ -227,7 +217,6 @@ impl<'a> UI<'a> {
             });
     }
 
-    // ─── Options popup (original style, bigger) ───────────────────────────────
     fn render_options(&mut self, ctx: &egui::Context, anim: f32) {
         let history_str  = self.app.translations.get("history",  self.app.language).to_string();
         let help_str     = self.app.translations.get("help",     self.app.language).to_string();
@@ -237,7 +226,6 @@ impl<'a> UI<'a> {
         let help_tex = self.app.icons.help.clone();
         let lang_tex = self.app.icons.language.clone();
 
-        // Backdrop — click outside closes
         egui::Area::new(Id::new("opt_bg"))
             .order(egui::Order::Foreground)
             .fixed_pos(Pos2::ZERO)
@@ -250,7 +238,6 @@ impl<'a> UI<'a> {
                 );
             });
 
-        // Popup card top-right, slides down from top
         egui::Area::new(Id::new("opt_card"))
             .order(egui::Order::Tooltip)
             .anchor(egui::Align2::RIGHT_TOP, [-50.0, 50.0 + 24.0 * (1.0 - anim)])
@@ -316,7 +303,6 @@ impl<'a> UI<'a> {
             });
     }
 
-    // ─── History ──────────────────────────────────────────────────────────────
     fn render_history(&mut self, ctx: &egui::Context, anim: f32) {
         egui::Area::new(Id::new("hist_bg"))
             .order(egui::Order::Foreground)
@@ -370,7 +356,6 @@ impl<'a> UI<'a> {
                                         egui::FontId::proportional(22.0),
                                         PRIMARY_TEXT_COLOR,
                                     );
-                                    // Convert stored UTC to Local for display
                                     let local_time = item.timestamp.with_timezone(&chrono::Local);
                                     ui.painter().text(
                                         row_rect.right_center() - egui::vec2(12.0, 0.0),
@@ -412,7 +397,6 @@ impl<'a> UI<'a> {
         }
     }
 
-    // ─── Explanation ──────────────────────────────────────────────────────────
     fn render_explanation(&mut self, ctx: &egui::Context, anim: f32) {
         egui::Area::new(Id::new("exp_bg"))
             .order(egui::Order::Foreground)
@@ -469,7 +453,6 @@ impl<'a> UI<'a> {
             });
     }
 
-    // ─── Results ──────────────────────────────────────────────────────────────
     fn render_results(&mut self, ctx: &egui::Context) {
         let back_tex = self.app.icons.back.clone();
         let info_tex = self.app.icons.info.clone();
@@ -491,8 +474,8 @@ impl<'a> UI<'a> {
                                 let _ = child.kill();
                                 let _ = child.wait();
                             }
-                        } else if let Some(FileContent::Audio { sink, .. }) = &self.app.current_file {
-                            sink.stop();
+                        } else if let Some(FileContent::Audio(state)) = &self.app.current_file {
+                            state.sink.stop();
                         }
 
                         self.app.show_results = false;
@@ -510,7 +493,6 @@ impl<'a> UI<'a> {
                     }
                 });
 
-            // --- MAIN VIEW PORT ---
             ui.vertical_centered(|ui| {
                 if self.app.is_loading {
                     ui.add_space(ui.available_height() / 2.0);
@@ -520,7 +502,8 @@ impl<'a> UI<'a> {
                     let mut prev = false;
                     let mut next = false;
 
-                    // Take mutable reference to handle audio Play/Pause state correctly
+                    let mut pdf_zoom_delta = 0.0;
+
                     if let Some(content) = &mut self.app.current_file {
                         use crate::file_handler::FileContent;
                         match content {
@@ -533,24 +516,22 @@ impl<'a> UI<'a> {
                             FileContent::Image(tex) => {
                                 ui.add_space(80.0);
                                 let a = ui.available_size() - Vec2::new(20.0, 20.0);
-                                // FIX: pass a cloned handle which derefs correctly
                                 let handle = tex.clone();
                                 ui.add(egui::Image::new(&handle).max_width(a.x).max_height(a.y));
                             }
                             
-                            // ---- FULL PDF VIEWER ----
-                            FileContent::Pdf { pages, .. } => {
-                                if !pages.is_empty() {
-                                    // Toolbar
+                            // ---- DYNAMIC PDF VIEWER ----
+                            FileContent::Pdf(pdf_state) => {
+                                let total = pdf_state.total_pages;
+                                
+                                if total > 0 {
                                     ui.add_space(34.0);
                                     ui.horizontal(|ui| {
-                                        ui.add_space(120.0); // Offset for back button
-                                        ui.label(egui::RichText::new(format!("Page {} / {}", page + 1, pages.len())).size(22.0).strong().color(SECONDARY_TEXT_COLOR));
+                                        ui.add_space(120.0);
+                                        ui.label(egui::RichText::new(format!("Page {} / {}", page + 1, total)).size(22.0).strong().color(SECONDARY_TEXT_COLOR));
                                         
                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                            ui.add_space(120.0); // Offset for info button
-                                            
-                                            // Zoom Buttons
+                                            ui.add_space(120.0);
                                             let mut style = (*ctx.style()).clone();
                                             style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
                                             style.visuals.widgets.hovered.bg_fill = SECONDARY_BUTTON_BG.linear_multiply(0.8);
@@ -558,35 +539,45 @@ impl<'a> UI<'a> {
                                             ui.style_mut().visuals = style.visuals;
 
                                             if ui.add_sized([44.0, 44.0], egui::Button::new(egui::RichText::new("➕").size(24.0))).clicked() {
-                                                self.app.pdf_zoom = (self.app.pdf_zoom + 0.25).min(3.0);
+                                                pdf_zoom_delta += 0.25;
                                             }
                                             ui.add_space(10.0);
                                             if ui.add_sized([44.0, 44.0], egui::Button::new(egui::RichText::new("➖").size(24.0))).clicked() {
-                                                self.app.pdf_zoom = (self.app.pdf_zoom - 0.25).max(0.5);
+                                                pdf_zoom_delta -= 0.25;
                                             }
                                         });
                                     });
 
                                     ui.add_space(20.0);
 
-                                    // Scrollable Canvas
+                                    // Let egui handle trackpad/wheel zoom gracefully via ctx
+                                    if ui.ui_contains_pointer() {
+                                        let scroll_delta = ctx.input(|i| i.scroll_delta.y);
+                                        if ctx.input(|i| i.modifiers.ctrl) && scroll_delta.abs() > 0.1 {
+                                            pdf_zoom_delta += scroll_delta * 0.005; // smooth trackpad zoom
+                                        }
+                                    }
+
+                                    // Fetch texture explicitly for the current zoom/page
+                                    let current_zoom = self.app.pdf_zoom;
+                                    let tex_opt = pdf_state.get_page(ctx, page, current_zoom);
+
                                     egui::ScrollArea::both()
                                         .auto_shrink([false, false])
-                                        .max_height(ui.available_height() - 100.0) // Leave space for nav
+                                        .max_height(ui.available_height() - 100.0)
                                         .show(ui, |ui| {
-                                        if let Some(tex) = pages.get(page) {
+                                        if let Some(tex) = tex_opt {
+                                            // The image dimensions physically adapt to zoom, allowing panning in ScrollArea
+                                            let display_height = (ctx.screen_rect().height() - 200.0) * current_zoom;
                                             let aspect = tex.size()[0] as f32 / tex.size()[1] as f32;
-                                            // Default scale fills screen vertically minus margins. Then multiply by zoom factor.
-                                            let display_height = (ctx.screen_rect().height() - 200.0) * self.app.pdf_zoom;
                                             let display_width = display_height * aspect;
                                             
-                                            // FIX: pass a cloned handle
-                                            let handle = tex.clone();
-                                            ui.add(egui::Image::new(&handle).fit_to_exact_size(egui::vec2(display_width, display_height)));
+                                            ui.add(egui::Image::new(&tex).fit_to_exact_size(egui::vec2(display_width, display_height)));
+                                        } else {
+                                            ui.centered_and_justified(|ui| { ui.spinner(); });
                                         }
                                     });
 
-                                    // Bottom Navigation Area
                                     egui::Area::new(Id::new("pdf_nav"))
                                         .order(egui::Order::Foreground)
                                         .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
@@ -596,7 +587,7 @@ impl<'a> UI<'a> {
                                                     if Self::icon_btn(ui, &cl_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { prev = true; }
                                                 } else { ui.add_space(68.0); }
                                                 ui.add_space(30.0);
-                                                if page < pages.len() - 1 {
+                                                if page < total - 1 {
                                                     if Self::icon_btn(ui, &cr_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { next = true; }
                                                 }
                                             });
@@ -604,8 +595,8 @@ impl<'a> UI<'a> {
                                 }
                             }
                             
-                            // ---- FULL AUDIO PLAYER ----
-                            FileContent::Audio { sink, is_playing } => {
+                            // ---- AUDIO PLAYER ----
+                            FileContent::Audio(state) => {
                                 ui.add_space(ui.available_height() / 3.0);
                                 ui.label(egui::RichText::new("🎵 Playing Audio").size(40.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(10.0);
@@ -613,7 +604,7 @@ impl<'a> UI<'a> {
                                 ui.add_space(50.0);
 
                                 ui.horizontal(|ui| {
-                                    ui.add_space(ui.available_width() / 2.0 - 100.0); // center
+                                    ui.add_space(ui.available_width() / 2.0 - 150.0); 
                                     
                                     let mut style = (*ctx.style()).clone();
                                     style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
@@ -621,46 +612,68 @@ impl<'a> UI<'a> {
                                     style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
                                     ui.style_mut().visuals = style.visuals;
 
-                                    let icon = if *is_playing { "⏸ Pause" } else { "▶ Play" };
+                                    if ui.add_sized([80.0, 75.0], egui::Button::new(egui::RichText::new("⏪ 10s").size(20.0).color(Color32::WHITE))).clicked() {
+                                        // TODO: implement seek backward if duration/pos logic added to AudioState
+                                    }
+
+                                    ui.add_space(10.0);
+
+                                    let icon = if state.is_playing { "⏸" } else { "▶" };
                                     let btn = egui::Button::new(egui::RichText::new(icon).size(30.0).color(Color32::WHITE));
-                                    
-                                    if ui.add_sized([200.0, 75.0], btn).clicked() {
-                                        if *is_playing {
-                                            sink.pause();
-                                            *is_playing = false;
+                                    if ui.add_sized([100.0, 75.0], btn).clicked() {
+                                        if state.is_playing {
+                                            state.sink.pause();
+                                            state.is_playing = false;
                                         } else {
-                                            sink.play();
-                                            *is_playing = true;
+                                            state.sink.play();
+                                            state.is_playing = true;
                                         }
+                                    }
+
+                                    ui.add_space(10.0);
+
+                                    if ui.add_sized([80.0, 75.0], egui::Button::new(egui::RichText::new("10s ⏩").size(20.0).color(Color32::WHITE))).clicked() {
+                                        // TODO: implement seek forward
                                     }
                                 });
                             }
                             
-                            // ---- FULL VIDEO MANAGEMENT ----
+                            // ---- VIDEO MANAGEMENT ----
                             FileContent::Video(child_arc) => {
                                 ui.add_space(ui.available_height() / 3.0);
                                 ui.label(egui::RichText::new("🎬 Video Playing in External Window").size(32.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(40.0);
 
-                                ui.horizontal(|ui| {
-                                    ui.add_space(ui.available_width() / 2.0 - 120.0);
-                                    
-                                    let mut style = (*ctx.style()).clone();
-                                    style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(250, 88, 88); // RED
-                                    style.visuals.widgets.hovered.bg_fill = Color32::from_rgb(200, 60, 60);
-                                    style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
-                                    ui.style_mut().visuals = style.visuals;
-
-                                    let btn = egui::Button::new(egui::RichText::new("⏹ Stop Video").size(30.0).color(Color32::WHITE));
-                                    if ui.add_sized([240.0, 75.0], btn).clicked() {
-                                        if let Ok(mut child) = child_arc.lock() {
-                                            let _ = child.kill();
-                                            let _ = child.wait(); // prevent zombie process
-                                        }
-                                        // Auto-close results view when video is stopped
-                                        self.app.show_results = false;
+                                // Check if video window closed itself
+                                let mut exited = false;
+                                if let Ok(mut child) = child_arc.lock() {
+                                    if let Ok(Some(_)) = child.try_wait() {
+                                        exited = true;
                                     }
-                                });
+                                }
+
+                                if exited {
+                                    self.app.show_results = false;
+                                } else {
+                                    ui.horizontal(|ui| {
+                                        ui.add_space(ui.available_width() / 2.0 - 120.0);
+                                        
+                                        let mut style = (*ctx.style()).clone();
+                                        style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(250, 88, 88); 
+                                        style.visuals.widgets.hovered.bg_fill = Color32::from_rgb(200, 60, 60);
+                                        style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                        ui.style_mut().visuals = style.visuals;
+
+                                        let btn = egui::Button::new(egui::RichText::new("⏹ Stop Video").size(30.0).color(Color32::WHITE));
+                                        if ui.add_sized([240.0, 75.0], btn).clicked() {
+                                            if let Ok(mut child) = child_arc.lock() {
+                                                let _ = child.kill();
+                                                let _ = child.wait();
+                                            }
+                                            self.app.show_results = false;
+                                        }
+                                    });
+                                }
                             }
 
                             FileContent::Html(h) => {
@@ -671,6 +684,11 @@ impl<'a> UI<'a> {
                             }
                         }
                     }
+
+                    if pdf_zoom_delta != 0.0 {
+                        self.app.pdf_zoom = (self.app.pdf_zoom + pdf_zoom_delta).clamp(0.5, 5.0);
+                    }
+
                     if prev { self.app.pdf_page -= 1; }
                     if next { self.app.pdf_page += 1; }
                 }
@@ -678,7 +696,6 @@ impl<'a> UI<'a> {
         });
     }
 
-    // ─── Popups ───────────────────────────────────────────────────────────────
     fn render_popups(&self, ctx: &egui::Context) {
         let now = std::time::SystemTime::now();
         let err_tex = self.app.icons.error.clone();
