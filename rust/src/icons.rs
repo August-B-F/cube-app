@@ -40,10 +40,14 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
     let opt = usvg::Options::default();
     let tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
     
-    // Instead of forcing a scale in usvg, we calculate an appropriate high-res bitmap size 
-    // that maintains perfectly crisp edges. eframe uses the GPU to scale down.
-    let scale = 10.0; // Render very large to avoid rasterization artifacts
+    // To prevent uneven/pixelated scaling when downsampling from a large render:
+    // Scale it to exactly double the max size it will be drawn on screen (e.g. 60 * 2 = 120).
+    // This allows the GPU to scale down evenly without harsh aliasing.
+    let target_size = 120.0;
+    
     let size = tree.size();
+    let scale = target_size / size.width().max(size.height());
+    
     let width = (size.width() * scale).ceil() as u32;
     let height = (size.height() * scale).ceil() as u32;
 
@@ -59,10 +63,5 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
         pixmap.data(),
     );
 
-    // Ensure mipmapping is enabled so that when the GPU downscales this large image,
-    // it interpolates smoothly instead of dropping pixels (which creates uneven/pixelated edges).
-    let mut options = TextureOptions::LINEAR;
-    // Note: Some older egui versions use `magnification`/`minification`. LINEAR covers most.
-    
-    ctx.load_texture(name, image, options)
+    ctx.load_texture(name, image, TextureOptions::LINEAR)
 }
