@@ -68,6 +68,7 @@ impl<'a> UI<'a> {
         texture: &egui::TextureHandle,
         size: f32,
         bg: Color32,
+        tint: Color32,
         rounding: f32,
     ) -> bool {
         let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
@@ -83,7 +84,7 @@ impl<'a> UI<'a> {
             texture.id(),
             img_rect,
             egui::Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
-            Color32::WHITE,
+            tint,
         );
         response.clicked()
     }
@@ -102,7 +103,7 @@ impl<'a> UI<'a> {
                 .order(egui::Order::Foreground)
                 .anchor(egui::Align2::RIGHT_TOP, [-50.0, 50.0])
                 .show(ctx, |ui| {
-                    if Self::icon_btn(ui, &menu_tex, 60.0, Color32::TRANSPARENT, 12.0) {
+                    if Self::icon_btn(ui, &menu_tex, 60.0, Color32::TRANSPARENT, BUTTON_COLOR, 12.0) {
                         self.app.show_options = true;
                     }
                 });
@@ -287,7 +288,7 @@ impl<'a> UI<'a> {
                             ui.painter().image(
                                 tex.id(), icon_rect,
                                 egui::Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
-                                Color32::WHITE,
+                                PRIMARY_TEXT_COLOR,
                             );
 
                             ui.painter().text(
@@ -478,12 +479,22 @@ impl<'a> UI<'a> {
         let cr_tex   = self.app.icons.chevron_right.clone();
 
         let audio_handle = self.app.file_handler.audio_handle.clone();
+        let is_video = matches!(self.app.current_file, Some(crate::file_handler::FileContent::Video(_)));
 
+        let screen_w = ctx.screen_rect().width();
+        
         let elapsed = self.app.last_mouse_input.elapsed().as_secs_f32();
         let overlay_alpha = if elapsed < 2.0 { 1.0 } else if elapsed < 3.0 { 1.0 - (elapsed - 2.0) } else { 0.0 };
 
-        if elapsed < 3.1 {
+        if elapsed < 3.1 && is_video {
             ctx.request_repaint();
+        }
+
+        // Full screen black background for video before panel to act as a proper backdrop
+        if is_video {
+            let mut style = (*ctx.style()).clone();
+            style.visuals.panel_fill = Color32::BLACK;
+            ctx.set_style(style);
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -492,16 +503,20 @@ impl<'a> UI<'a> {
             style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
             ui.set_style(style);
             
-            let is_video = matches!(self.app.current_file, Some(crate::file_handler::FileContent::Video(_)));
+            // Only hide the top buttons if it is a video AND the overlay is faded.
+            let show_top_buttons = if is_video { overlay_alpha > 0.0 } else { true };
+            let top_alpha = if is_video { overlay_alpha } else { 1.0 };
+            
+            let btn_bg = if is_video { Color32::from_black_alpha(150) } else { SECONDARY_BUTTON_BG };
+            let btn_tint = if is_video { Color32::WHITE } else { BUTTON_COLOR };
 
-            if overlay_alpha > 0.0 {
+            if show_top_buttons {
                 egui::Area::new(Id::new("back_area"))
                     .order(egui::Order::Foreground)
                     .anchor(egui::Align2::LEFT_TOP, [34.0, 34.0])
                     .show(ctx, |ui| {
-                        ui.multiply_opacity(overlay_alpha);
-                        let bg_color = if is_video { Color32::from_black_alpha(150) } else { SECONDARY_BUTTON_BG };
-                        if Self::icon_btn(ui, &back_tex, 56.0, bg_color, 12.0) {
+                        ui.multiply_opacity(top_alpha);
+                        if Self::icon_btn(ui, &back_tex, 56.0, btn_bg, btn_tint, 12.0) {
                             use crate::file_handler::FileContent;
                             if let Some(FileContent::Audio(state)) = &self.app.current_file {
                                 state.sink.stop();
@@ -516,9 +531,8 @@ impl<'a> UI<'a> {
                     .order(egui::Order::Foreground)
                     .anchor(egui::Align2::RIGHT_TOP, [-34.0, 34.0])
                     .show(ctx, |ui| {
-                        ui.multiply_opacity(overlay_alpha);
-                        let bg_color = if is_video { Color32::from_black_alpha(150) } else { SECONDARY_BUTTON_BG };
-                        if Self::icon_btn(ui, &info_tex, 56.0, bg_color, 12.0) {
+                        ui.multiply_opacity(top_alpha);
+                        if Self::icon_btn(ui, &info_tex, 56.0, btn_bg, btn_tint, 12.0) {
                             let project_code = self.app.current_code.clone();
                             self.app.load_explanation(&project_code);
                         }
@@ -612,37 +626,35 @@ impl<'a> UI<'a> {
                                     }
                                 });
 
-                                if overlay_alpha > 0.0 {
-                                    egui::Area::new(Id::new("pdf_nav"))
-                                        .order(egui::Order::Foreground)
-                                        .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
-                                        .show(ctx, |ui| {
-                                            ui.multiply_opacity(overlay_alpha);
-                                            ui.horizontal(|ui| {
-                                                if page > 0 {
-                                                    if Self::icon_btn(ui, &cl_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { prev = true; }
-                                                } else { ui.add_space(68.0); }
-                                                ui.add_space(30.0);
-                                                if page < total - 1 {
-                                                    if Self::icon_btn(ui, &cr_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { next = true; }
-                                                }
-                                            });
+                                egui::Area::new(Id::new("pdf_nav"))
+                                    .order(egui::Order::Foreground)
+                                    .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
+                                    .show(ctx, |ui| {
+                                        ui.horizontal(|ui| {
+                                            if page > 0 {
+                                                if Self::icon_btn(ui, &cl_tex, 60.0, SECONDARY_BUTTON_BG, BUTTON_COLOR, 10.0) { prev = true; }
+                                            } else { ui.add_space(68.0); }
+                                            ui.add_space(30.0);
+                                            if page < total - 1 {
+                                                if Self::icon_btn(ui, &cr_tex, 60.0, SECONDARY_BUTTON_BG, BUTTON_COLOR, 10.0) { next = true; }
+                                            }
                                         });
-                                }
+                                    });
                             }
                         }
                         
                         FileContent::Audio(state) => {
                             ui.vertical_centered(|ui| {
-                                ui.add_space(ui.available_height() / 4.0);
-                                ui.label(egui::RichText::new(&self.app.current_code).size(48.0).strong().color(PRIMARY_TEXT_COLOR));
+                                ui.add_space(ctx.screen_rect().height() * 0.3);
+
+                                ui.label(egui::RichText::new(&self.app.current_code).size(56.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(40.0);
 
                                 let now = std::time::Instant::now();
                                 if state.is_playing {
                                     let dt = now.duration_since(state.last_update);
                                     state.current_pos += std::time::Duration::from_secs_f32(dt.as_secs_f32() * state.playback_speed);
-                                    ctx.request_repaint(); // Repaint while playing audio to update slider
+                                    ctx.request_repaint();
                                 }
                                 state.last_update = now;
                                 
@@ -660,13 +672,13 @@ impl<'a> UI<'a> {
                                 };
 
                                 ui.label(egui::RichText::new(format!("{} / {}", fmt_time(pos_secs), fmt_time(dur_secs)))
-                                    .size(24.0).strong().color(PRIMARY_TEXT_COLOR));
-                                ui.add_space(10.0);
+                                    .size(24.0).strong().color(SECONDARY_TEXT_COLOR));
+                                ui.add_space(16.0);
 
-                                let total_avail1 = ui.available_width();
+                                // Slider block perfectly centered via direct width math
                                 ui.horizontal(|ui| {
-                                    let slider_w = total_avail1 * 0.70;
-                                    ui.add_space((total_avail1 - slider_w) / 2.0);
+                                    let slider_w = screen_w * 0.65;
+                                    ui.add_space((screen_w - slider_w) / 2.0);
                                     
                                     let mut slider_style = (*ctx.style()).clone();
                                     slider_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
@@ -675,27 +687,24 @@ impl<'a> UI<'a> {
                                     slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
                                     ui.set_style(slider_style);
 
-                                    let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs)
-                                        .show_value(false)
-                                        .trailing_fill(true);
-                                    
-                                    let response = ui.add_sized([slider_w, 30.0], slider);
-                                    if response.changed() {
+                                    let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
+                                    let resp = ui.add_sized([slider_w, 32.0], slider);
+                                    if resp.changed() {
                                         state.current_pos = std::time::Duration::from_secs_f32(pos_secs);
                                     }
-                                    if response.drag_stopped() {
+                                    if resp.drag_stopped() {
                                         if let Some(handle) = &audio_handle {
                                             let _ = state.seek(state.current_pos, handle);
                                         }
                                     }
                                 });
 
-                                ui.add_space(30.0);
+                                ui.add_space(32.0);
 
-                                let total_avail2 = ui.available_width();
+                                // Controls block
                                 ui.horizontal(|ui| {
-                                    let controls_w = 80.0 + 10.0 + 70.0 + 10.0 + 90.0 + 10.0 + 70.0;
-                                    ui.add_space((total_avail2 - controls_w) / 2.0);
+                                    let controls_w = 90.0 + 16.0 + 70.0 + 16.0 + 90.0 + 16.0 + 70.0;
+                                    ui.add_space((screen_w - controls_w) / 2.0);
                                     
                                     let mut btn_style = (*ctx.style()).clone();
                                     btn_style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
@@ -703,11 +712,10 @@ impl<'a> UI<'a> {
                                     btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
                                     ui.style_mut().visuals = btn_style.visuals;
 
-                                    // Speed Dropdown
                                     let mut current_speed = state.playback_speed;
                                     #[allow(deprecated)]
                                     egui::ComboBox::from_id_source("audio_speed")
-                                        .width(80.0)
+                                        .width(90.0)
                                         .selected_text(format!("{}x", current_speed))
                                         .show_ui(ui, |ui| {
                                             ui.selectable_value(&mut current_speed, 1.0, "1.0x");
@@ -720,9 +728,8 @@ impl<'a> UI<'a> {
                                         state.sink.set_speed(current_speed);
                                     }
                                     
-                                    ui.add_space(10.0);
+                                    ui.add_space(16.0);
 
-                                    // Rewind
                                     if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(Color32::WHITE))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() - 10.0).max(0.0);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
@@ -730,12 +737,11 @@ impl<'a> UI<'a> {
                                             let _ = state.seek(target_dur, handle);
                                         }
                                     }
-                                    ui.add_space(10.0);
+                                    
+                                    ui.add_space(16.0);
 
-                                    // Play / Pause
                                     let icon = if state.is_playing { "⏸" } else { "▶" };
-                                    let btn = egui::Button::new(egui::RichText::new(icon).size(36.0).color(Color32::WHITE));
-                                    if ui.add_sized([90.0, 75.0], btn).clicked() {
+                                    if ui.add_sized([90.0, 75.0], egui::Button::new(egui::RichText::new(icon).size(36.0).color(Color32::WHITE))).clicked() {
                                         if state.is_playing {
                                             state.sink.pause();
                                             state.is_playing = false;
@@ -751,9 +757,9 @@ impl<'a> UI<'a> {
                                             state.last_update = std::time::Instant::now();
                                         }
                                     }
-                                    ui.add_space(10.0);
+                                    
+                                    ui.add_space(16.0);
 
-                                    // Forward
                                     if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(Color32::WHITE))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() + 10.0).min(dur_secs);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
@@ -766,9 +772,6 @@ impl<'a> UI<'a> {
                         }
                         
                         FileContent::Video(state) => {
-                            // Fullscreen Black Background
-                            ui.painter().rect_filled(ctx.screen_rect(), 0.0, Color32::BLACK);
-
                             if state.is_playing {
                                 let now = std::time::Instant::now();
                                 let dt = now.duration_since(state.last_update).as_secs_f32() * state.playback_speed;
@@ -781,15 +784,15 @@ impl<'a> UI<'a> {
                                 }
 
                                 let target_frame = (state.current_time * state.fps) as usize;
+                                let mut loaded_img = None;
 
                                 while state.frame_index < target_frame {
                                     match state.rx.try_recv() {
                                         Ok(img) => {
-                                            state.texture = Some(ctx.load_texture("vid_frame", img, Default::default()));
+                                            loaded_img = Some(img);
                                             state.frame_index += 1;
                                         }
                                         Err(std::sync::mpsc::TryRecvError::Empty) => {
-                                            // Frame pacing fallback if ffmpeg is slow
                                             state.current_time = (state.frame_index as f32) / state.fps;
                                             break;
                                         }
@@ -798,24 +801,24 @@ impl<'a> UI<'a> {
                                         }
                                     }
                                 }
-                                ctx.request_repaint();
+
+                                if let Some(img) = loaded_img {
+                                    state.texture = Some(ctx.load_texture("vid_frame", img, Default::default()));
+                                }
                             } else {
                                 state.last_update = std::time::Instant::now();
                             }
 
                             if let Some(tex) = &state.texture {
                                 let max_rect = ctx.screen_rect();
-                                let max_w = max_rect.width();
-                                let max_h = max_rect.height();
                                 let aspect = state.width as f32 / state.height as f32;
-                                let mut w = max_w;
+                                let mut w = max_rect.width();
                                 let mut h = w / aspect;
-                                if h > max_h {
-                                    h = max_h;
+                                if h > max_rect.height() {
+                                    h = max_rect.height();
                                     w = h * aspect;
                                 }
-                                let center = max_rect.center();
-                                let img_rect = Rect::from_center_size(center, egui::vec2(w, h));
+                                let img_rect = Rect::from_center_size(max_rect.center(), egui::vec2(w, h));
                                 ui.painter().image(
                                     tex.id(),
                                     img_rect,
@@ -832,105 +835,94 @@ impl<'a> UI<'a> {
                             if overlay_alpha > 0.0 {
                                 egui::Area::new(Id::new("vid_controls"))
                                     .order(egui::Order::Foreground)
-                                    .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -40.0])
+                                    .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -32.0])
                                     .show(ctx, |ui| {
                                         ui.multiply_opacity(overlay_alpha);
+                                        let bar_w = screen_w * 0.9;
+                                        
                                         egui::Frame::none()
-                                            .fill(Color32::from_black_alpha(200))
+                                            .fill(Color32::from_black_alpha(220))
                                             .rounding(Rounding::same(16.0))
-                                            .inner_margin(Margin::symmetric(30.0, 20.0))
+                                            .inner_margin(Margin::symmetric(32.0, 24.0))
                                             .show(ui, |ui| {
+                                                ui.set_width(bar_w);
+                                                
                                                 let dur_secs = state.duration;
                                                 let mut pos_secs = state.current_time;
-                                                
                                                 let fmt_time = |secs: f32| -> String {
                                                     let s = secs as u32;
                                                     format!("{:02}:{:02}", s / 60, s % 60)
                                                 };
-                                                
-                                                ui.vertical_centered(|ui| {
-                                                    // Time Label
-                                                    ui.label(egui::RichText::new(format!("{} / {}", fmt_time(pos_secs), fmt_time(dur_secs)))
-                                                        .size(20.0).strong().color(Color32::WHITE));
-                                                    ui.add_space(10.0);
+
+                                                ui.vertical(|ui| {
+                                                    // Slider spans the whole inner width
+                                                    let mut slider_style = (*ctx.style()).clone();
+                                                    slider_style.visuals.widgets.inactive.bg_fill = Color32::from_white_alpha(50);
+                                                    slider_style.visuals.widgets.active.bg_fill = ACTION_BUTTON_COLOR;
+                                                    slider_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                                                    slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
+                                                    ui.set_style(slider_style);
                                                     
-                                                    // Slider perfectly centered
-                                                    let total_avail1 = ui.available_width();
-                                                    ui.horizontal(|ui| {
-                                                        let slider_w = total_avail1 * 0.8;
-                                                        ui.add_space((total_avail1 - slider_w) / 2.0);
-                                                        
-                                                        let mut slider_style = (*ctx.style()).clone();
-                                                        slider_style.visuals.widgets.inactive.bg_fill = Color32::from_black_alpha(150);
-                                                        slider_style.visuals.widgets.active.bg_fill = ACTION_BUTTON_COLOR;
-                                                        slider_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
-                                                        slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
-                                                        ui.set_style(slider_style);
-                                                        
-                                                        let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
-                                                        let resp = ui.add_sized([slider_w, 20.0], slider);
-                                                        if resp.changed() { state.current_time = pos_secs; }
-                                                        if resp.drag_stopped() { state.seek(pos_secs, &audio_handle); }
-                                                    });
+                                                    let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs).show_value(false).trailing_fill(true);
+                                                    let resp = ui.add_sized([bar_w - 64.0, 24.0], slider);
+                                                    if resp.changed() { state.current_time = pos_secs; }
+                                                    if resp.drag_stopped() { state.seek(pos_secs, &audio_handle); }
                                                     
                                                     ui.add_space(20.0);
-                                                    
-                                                    // Control Buttons perfectly centered
-                                                    let total_avail2 = ui.available_width();
+
+                                                    // Controls horizontally aligned
                                                     ui.horizontal(|ui| {
-                                                        let controls_w = 80.0 + 10.0 + 70.0 + 10.0 + 90.0 + 10.0 + 70.0;
-                                                        ui.add_space((total_avail2 - controls_w) / 2.0);
-                                                        
                                                         let mut btn_style = (*ctx.style()).clone();
-                                                        btn_style.visuals.widgets.inactive.bg_fill = Color32::from_white_alpha(30);
-                                                        btn_style.visuals.widgets.hovered.bg_fill = Color32::from_white_alpha(60);
-                                                        btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                                        btn_style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                                                        btn_style.visuals.widgets.hovered.bg_fill = Color32::from_white_alpha(30);
+                                                        btn_style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
                                                         ui.style_mut().visuals = btn_style.visuals;
 
-                                                        // Speed Dropdown
-                                                        let mut current_speed = state.playback_speed;
-                                                        #[allow(deprecated)]
-                                                        egui::ComboBox::from_id_source("vid_speed")
-                                                            .width(80.0)
-                                                            .selected_text(format!("{}x", current_speed))
-                                                            .show_ui(ui, |ui| {
-                                                                ui.selectable_value(&mut current_speed, 1.0, "1.0x");
-                                                                ui.selectable_value(&mut current_speed, 1.25, "1.25x");
-                                                                ui.selectable_value(&mut current_speed, 1.5, "1.5x");
-                                                                ui.selectable_value(&mut current_speed, 2.0, "2.0x");
-                                                            });
-                                                        if current_speed != state.playback_speed {
-                                                            state.playback_speed = current_speed;
-                                                            if let Some(sink) = &state.audio_sink {
-                                                                sink.set_speed(current_speed);
-                                                            }
-                                                        }
-                                                        
-                                                        ui.add_space(10.0);
-
-                                                        // Rewind
-                                                        if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(Color32::WHITE))).clicked() {
-                                                            let target = (state.current_time - 10.0).max(0.0);
-                                                            state.seek(target, &audio_handle);
-                                                        }
-                                                        ui.add_space(10.0);
-
-                                                        // Play / Pause
                                                         let icon = if state.is_playing { "⏸" } else { "▶" };
-                                                        let btn = egui::Button::new(egui::RichText::new(icon).size(36.0).color(Color32::WHITE));
-                                                        if ui.add_sized([90.0, 75.0], btn).clicked() {
+                                                        if ui.add_sized([56.0, 56.0], egui::Button::new(egui::RichText::new(icon).size(32.0).color(Color32::WHITE))).clicked() {
                                                             state.is_playing = !state.is_playing;
                                                             if let Some(sink) = &state.audio_sink {
                                                                 if state.is_playing { sink.play(); } else { sink.pause(); }
                                                             }
                                                         }
-                                                        ui.add_space(10.0);
-
-                                                        // Forward
-                                                        if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(Color32::WHITE))).clicked() {
-                                                            let target = (state.current_time + 10.0).min(dur_secs);
-                                                            state.seek(target, &audio_handle);
+                                                        
+                                                        ui.add_space(16.0);
+                                                        
+                                                        if ui.add_sized([48.0, 48.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(Color32::WHITE))).clicked() {
+                                                            state.seek((state.current_time - 10.0).max(0.0), &audio_handle);
                                                         }
+                                                        
+                                                        ui.add_space(8.0);
+                                                        
+                                                        if ui.add_sized([48.0, 48.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(Color32::WHITE))).clicked() {
+                                                            state.seek((state.current_time + 10.0).min(dur_secs), &audio_handle);
+                                                        }
+                                                        
+                                                        ui.add_space(24.0);
+                                                        
+                                                        ui.label(egui::RichText::new(format!("{} / {}", fmt_time(pos_secs), fmt_time(dur_secs)))
+                                                            .size(20.0).strong().color(Color32::WHITE));
+                                                            
+                                                        // Push speed dropdown to the far right
+                                                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                            let mut current_speed = state.playback_speed;
+                                                            #[allow(deprecated)]
+                                                            egui::ComboBox::from_id_source("vid_speed")
+                                                                .width(90.0)
+                                                                .selected_text(format!("{}x", current_speed))
+                                                                .show_ui(ui, |ui| {
+                                                                    ui.selectable_value(&mut current_speed, 1.0, "1.0x");
+                                                                    ui.selectable_value(&mut current_speed, 1.25, "1.25x");
+                                                                    ui.selectable_value(&mut current_speed, 1.5, "1.5x");
+                                                                    ui.selectable_value(&mut current_speed, 2.0, "2.0x");
+                                                                });
+                                                            if current_speed != state.playback_speed {
+                                                                state.playback_speed = current_speed;
+                                                                if let Some(sink) = &state.audio_sink {
+                                                                    sink.set_speed(current_speed);
+                                                                }
+                                                            }
+                                                        });
                                                     });
                                                 });
                                             });
