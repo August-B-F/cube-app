@@ -147,7 +147,7 @@ impl CubeApp {
                         self.is_loading = false;
                         self.history.add_item(HistoryItem {
                             code: decoded.clone(),
-                            timestamp: chrono::Local::now(),
+                            timestamp: chrono::Utc::now(),
                             result: "Found".to_string(),
                         });
                         self.grid = [[0; 5]; 5];
