@@ -554,10 +554,7 @@ impl<'a> UI<'a> {
                             if total > 0 {
                                 ui.vertical_centered(|ui| {
                                     ui.add_space(34.0);
-                                    ui.horizontal(|ui| {
-                                        ui.add_space(120.0);
-                                        ui.label(egui::RichText::new(format!("Page {} / {}", page + 1, total)).size(22.0).strong().color(SECONDARY_TEXT_COLOR));
-                                    });
+                                    ui.label(egui::RichText::new(format!("Page {} / {}", page + 1, total)).size(22.0).strong().color(SECONDARY_TEXT_COLOR));
                                     ui.add_space(20.0);
                                 });
 
@@ -627,9 +624,7 @@ impl<'a> UI<'a> {
                         FileContent::Audio(state) => {
                             ui.vertical_centered(|ui| {
                                 ui.add_space(ui.available_height() / 4.0);
-                                ui.label(egui::RichText::new("🎵 Audio Player").size(40.0).strong().color(PRIMARY_TEXT_COLOR));
-                                ui.add_space(10.0);
-                                ui.label(egui::RichText::new(format!("Project: {}", self.app.current_code)).size(20.0).color(SECONDARY_TEXT_COLOR));
+                                ui.label(egui::RichText::new(&self.app.current_code).size(48.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(40.0);
 
                                 let now = std::time::Instant::now();
@@ -657,7 +652,10 @@ impl<'a> UI<'a> {
                                 ui.add_space(10.0);
 
                                 ui.horizontal(|ui| {
-                                    ui.add_space(ui.available_width() * 0.15);
+                                    // Use ui.available_width() to perfectly center the 70% width slider
+                                    let slider_w = ui.available_width() * 0.70;
+                                    let padding = (ui.available_width() - slider_w) / 2.0;
+                                    ui.add_space(padding);
                                     
                                     let mut slider_style = (*ctx.style()).clone();
                                     slider_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
@@ -666,7 +664,6 @@ impl<'a> UI<'a> {
                                     slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
                                     ui.set_style(slider_style);
 
-                                    let slider_w = ui.available_width() * 0.70;
                                     let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs)
                                         .show_value(false)
                                         .trailing_fill(true);
@@ -684,8 +681,13 @@ impl<'a> UI<'a> {
 
                                 ui.add_space(30.0);
 
+                                // Control row perfectly centered
                                 ui.horizontal(|ui| {
-                                    ui.add_space(ui.available_width() / 2.0 - 180.0);
+                                    // 4 buttons + 3 spaces of 10.0
+                                    // Dropdown (80) + Rewind (70) + Play/Pause (90) + Forward (70) + spaces (30) = 340 total width
+                                    let controls_w = 340.0;
+                                    let padding = (ui.available_width() - controls_w) / 2.0;
+                                    ui.add_space(padding);
                                     
                                     let mut btn_style = (*ctx.style()).clone();
                                     btn_style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
@@ -693,18 +695,25 @@ impl<'a> UI<'a> {
                                     btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
                                     ui.style_mut().visuals = btn_style.visuals;
 
-                                    let speed_text = format!("{}x", state.playback_speed);
-                                    if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new(&speed_text).size(18.0).color(Color32::WHITE))).clicked() {
-                                        state.playback_speed = match state.playback_speed {
-                                            1.0 => 1.25,
-                                            1.25 => 1.5,
-                                            1.5 => 2.0,
-                                            _ => 1.0,
-                                        };
-                                        state.sink.set_speed(state.playback_speed);
+                                    // Speed Dropdown
+                                    let mut current_speed = state.playback_speed;
+                                    egui::ComboBox::from_id_source("audio_speed")
+                                        .width(80.0)
+                                        .selected_text(format!("{}x", current_speed))
+                                        .show_ui(ui, |ui| {
+                                            ui.selectable_value(&mut current_speed, 1.0, "1.0x");
+                                            ui.selectable_value(&mut current_speed, 1.25, "1.25x");
+                                            ui.selectable_value(&mut current_speed, 1.5, "1.5x");
+                                            ui.selectable_value(&mut current_speed, 2.0, "2.0x");
+                                        });
+                                    if current_speed != state.playback_speed {
+                                        state.playback_speed = current_speed;
+                                        state.sink.set_speed(current_speed);
                                     }
+                                    
                                     ui.add_space(10.0);
 
+                                    // Rewind
                                     if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(Color32::WHITE))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() - 10.0).max(0.0);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
@@ -714,6 +723,7 @@ impl<'a> UI<'a> {
                                     }
                                     ui.add_space(10.0);
 
+                                    // Play / Pause
                                     let icon = if state.is_playing { "⏸" } else { "▶" };
                                     let btn = egui::Button::new(egui::RichText::new(icon).size(36.0).color(Color32::WHITE));
                                     if ui.add_sized([90.0, 75.0], btn).clicked() {
@@ -734,6 +744,7 @@ impl<'a> UI<'a> {
                                     }
                                     ui.add_space(10.0);
 
+                                    // Forward
                                     if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(Color32::WHITE))).clicked() {
                                         let target = (state.current_pos.as_secs_f32() + 10.0).min(dur_secs);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
@@ -747,30 +758,51 @@ impl<'a> UI<'a> {
                         
                         FileContent::Video(child_arc) => {
                             ui.vertical_centered(|ui| {
-                                ui.add_space(ui.available_height() / 3.0);
-                                ui.label(egui::RichText::new("🎬 Video Playing").size(32.0).strong().color(PRIMARY_TEXT_COLOR));
+                                ui.add_space(ui.available_height() / 4.0);
+                                ui.label(egui::RichText::new(&self.app.current_code).size(48.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(20.0);
-                                ui.label(egui::RichText::new("The video was opened in your system's default media player.").size(20.0).color(SECONDARY_TEXT_COLOR));
+                                
+                                // Cleaned up video player logic.
+                                // Instead of making it look like a crash/error, we present it as a clean "Video is open in another app" control page.
+                                ui.label(egui::RichText::new("External Video Player Active").size(24.0).color(SECONDARY_TEXT_COLOR));
                                 ui.add_space(40.0);
-
-                                ui.horizontal(|ui| {
-                                    ui.add_space(ui.available_width() / 2.0 - 120.0);
-                                    
-                                    let mut style = (*ctx.style()).clone();
-                                    style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(250, 88, 88); 
-                                    style.visuals.widgets.hovered.bg_fill = Color32::from_rgb(200, 60, 60);
-                                    style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
-                                    ui.style_mut().visuals = style.visuals;
-
-                                    let btn = egui::Button::new(egui::RichText::new("⏹ Close Window").size(30.0).color(Color32::WHITE));
-                                    if ui.add_sized([240.0, 75.0], btn).clicked() {
-                                        if let Ok(mut child) = child_arc.lock() {
-                                            let _ = child.kill();
-                                            let _ = child.wait();
-                                        }
-                                        self.app.show_results = false;
+                                
+                                let mut is_running = false;
+                                if let Ok(mut child) = child_arc.lock() {
+                                    match child.try_wait() {
+                                        Ok(Some(_)) => { is_running = false; }
+                                        Ok(None) => { is_running = true; }
+                                        Err(_) => { is_running = false; }
                                     }
-                                });
+                                }
+
+                                if is_running {
+                                    ui.label(egui::RichText::new("Return to your desktop to view the video.").size(18.0).color(SECONDARY_TEXT_COLOR));
+                                    ui.add_space(30.0);
+
+                                    // Stop button centered
+                                    ui.horizontal(|ui| {
+                                        let btn_w = 240.0;
+                                        let padding = (ui.available_width() - btn_w) / 2.0;
+                                        ui.add_space(padding);
+                                        
+                                        let mut style = (*ctx.style()).clone();
+                                        style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(250, 88, 88); 
+                                        style.visuals.widgets.hovered.bg_fill = Color32::from_rgb(200, 60, 60);
+                                        style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                        ui.style_mut().visuals = style.visuals;
+
+                                        let btn = egui::Button::new(egui::RichText::new("⏹ Close Video").size(24.0).color(Color32::WHITE));
+                                        if ui.add_sized([btn_w, 75.0], btn).clicked() {
+                                            if let Ok(mut child) = child_arc.lock() {
+                                                let _ = child.kill();
+                                                let _ = child.wait();
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    ui.label(egui::RichText::new("The video has finished playing.").size(18.0).color(SECONDARY_TEXT_COLOR));
+                                }
                             });
                         }
 
