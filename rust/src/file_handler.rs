@@ -50,7 +50,7 @@ impl AudioState {
 
 pub struct VideoState {
     pub rx: std::sync::mpsc::Receiver<ColorImage>,
-    pub tx: std::sync::mpsc::Sender<ColorImage>,
+    pub tx: std::sync::mpsc::SyncSender<ColorImage>,
     pub texture: Option<TextureHandle>,
     pub is_playing: bool,
     pub current_time: f32,
@@ -62,6 +62,8 @@ pub struct VideoState {
     pub audio_sink: Option<Arc<rodio::Sink>>,
     pub path: PathBuf,
     pub command_child: Arc<Mutex<Option<std::process::Child>>>,
+    pub playback_speed: f32,
+    pub frame_index: usize,
 }
 
 impl Drop for VideoState {
@@ -78,6 +80,7 @@ impl Drop for VideoState {
 impl VideoState {
     pub fn seek(&mut self, target_time: f32, audio_handle: &Option<rodio::OutputStreamHandle>) {
         self.current_time = target_time;
+        self.frame_index = (target_time * self.fps) as usize;
         self.last_update = std::time::Instant::now();
 
         if let Ok(mut child_opt) = self.command_child.lock() {
@@ -128,12 +131,14 @@ impl VideoState {
         if let Some(sink) = &self.audio_sink {
             sink.stop();
         }
+        
         if let Some(handle) = audio_handle {
             if let Ok(file) = std::fs::File::open(&self.path) {
                 if let Ok(decoder) = rodio::Decoder::new(std::io::BufReader::new(file)) {
                     if let Ok(new_sink) = rodio::Sink::try_new(handle) {
                         use rodio::Source;
                         let skipped = decoder.skip_duration(std::time::Duration::from_secs_f32(target_time));
+                        new_sink.set_speed(self.playback_speed);
                         new_sink.append(skipped);
                         if self.is_playing {
                             new_sink.play();
@@ -347,7 +352,7 @@ impl FileHandler {
                 };
                 let duration: f32 = lines.next().unwrap_or("0").parse().unwrap_or(0.0);
 
-                let (tx, rx) = std::sync::mpsc::channel();
+                let (tx, rx) = std::sync::mpsc::sync_channel(10);
 
                 let mut state = VideoState {
                     rx,
@@ -363,6 +368,8 @@ impl FileHandler {
                     audio_sink: None,
                     path: path.to_path_buf(),
                     command_child: Arc::new(Mutex::new(None)),
+                    playback_speed: 1.0,
+                    frame_index: 0,
                 };
 
                 state.seek(0.0, &self.audio_handle);
