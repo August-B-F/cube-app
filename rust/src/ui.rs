@@ -717,17 +717,18 @@ impl<'a> UI<'a> {
 
                                 let avail_w2 = ui.available_width();
                                 // Audio speed widget removed: new controls width
-                                let controls_w = 60.0 + 16.0 + 60.0 + 16.0 + 60.0;
+                                let controls_w = 64.0 + 20.0 + 64.0 + 20.0 + 64.0;
                                 ui.horizontal(|ui| {
                                     ui.add_space((avail_w2 - controls_w) / 2.0);
                                     
                                     let mut btn_style = (*ctx.style()).clone();
                                     btn_style.visuals.widgets.inactive.bg_fill = Color32::WHITE;
                                     btn_style.visuals.widgets.hovered.bg_fill = Color32::from_gray(230);
-                                    btn_style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
+                                    btn_style.visuals.widgets.active.bg_fill = Color32::from_gray(200);
+                                    btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
                                     ui.style_mut().visuals = btn_style.visuals;
 
-                                    if ui.add_sized([60.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
+                                    if ui.add_sized([64.0, 64.0], egui::Button::new(egui::RichText::new("⏪").size(32.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
                                         let target = (state.current_pos.as_secs_f32() - 10.0).max(0.0);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
                                         if let Some(handle) = &audio_handle {
@@ -735,11 +736,11 @@ impl<'a> UI<'a> {
                                         }
                                     }
                                     
-                                    ui.add_space(16.0);
+                                    ui.add_space(20.0);
 
                                     let dur_secs = state.duration.map(|d| d.as_secs_f32()).unwrap_or(0.0);
                                     let icon = if state.is_playing { "⏸" } else { "▶" };
-                                    if ui.add_sized([60.0, 60.0], egui::Button::new(egui::RichText::new(icon).size(30.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
+                                    if ui.add_sized([64.0, 64.0], egui::Button::new(egui::RichText::new(icon).size(36.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
                                         if state.is_playing {
                                             state.sink.pause();
                                             state.is_playing = false;
@@ -756,9 +757,9 @@ impl<'a> UI<'a> {
                                         }
                                     }
                                     
-                                    ui.add_space(16.0);
+                                    ui.add_space(20.0);
 
-                                    if ui.add_sized([60.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
+                                    if ui.add_sized([64.0, 64.0], egui::Button::new(egui::RichText::new("⏩").size(32.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
                                         let target = (state.current_pos.as_secs_f32() + 10.0).min(dur_secs);
                                         let target_dur = std::time::Duration::from_secs_f32(target);
                                         if let Some(handle) = &audio_handle {
@@ -875,57 +876,68 @@ impl<'a> UI<'a> {
                                                         let mut btn_style = (*ctx.style()).clone();
                                                         btn_style.visuals.widgets.inactive.bg_fill = Color32::WHITE; 
                                                         btn_style.visuals.widgets.hovered.bg_fill = Color32::from_gray(230);
-                                                        btn_style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
+                                                        btn_style.visuals.widgets.active.bg_fill = Color32::from_gray(200);
+                                                        btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
                                                         ui.style_mut().visuals = btn_style.visuals;
 
                                                         let icon = if state.is_playing { "⏸" } else { "▶" };
-                                                        // Taller and thinner MP4 playback button: [48.0, 48.0]
-                                                        if ui.add_sized([48.0, 48.0], egui::Button::new(egui::RichText::new(icon).size(28.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
+                                                        
+                                                        if ui.add_sized([64.0, 64.0], egui::Button::new(egui::RichText::new(icon).size(36.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
                                                             state.is_playing = !state.is_playing;
                                                             if let Some(sink) = &state.audio_sink {
                                                                 if state.is_playing { sink.play(); } else { sink.pause(); }
                                                             }
                                                         }
                                                         
-                                                        ui.add_space(16.0);
+                                                        ui.add_space(20.0);
                                                         
-                                                        if ui.add_sized([48.0, 48.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
+                                                        if ui.add_sized([64.0, 64.0], egui::Button::new(egui::RichText::new("⏪").size(32.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
                                                             state.seek((state.current_time - 10.0).max(0.0), &audio_handle);
                                                         }
                                                         
-                                                        ui.add_space(8.0);
+                                                        ui.add_space(12.0);
                                                         
-                                                        if ui.add_sized([48.0, 48.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
+                                                        if ui.add_sized([64.0, 64.0], egui::Button::new(egui::RichText::new("⏩").size(32.0).color(BUTTON_COLOR)).fill(Color32::WHITE)).clicked() {
                                                             state.seek((state.current_time + 10.0).min(dur_secs), &audio_handle);
                                                         }
                                                         
-                                                        ui.add_space(24.0);
+                                                        ui.add_space(32.0);
                                                         
                                                         ui.label(egui::RichText::new(format!("{} / {}", fmt_time(pos_secs), fmt_time(dur_secs)))
-                                                            .size(20.0).strong().color(Color32::WHITE));
+                                                            .size(24.0).strong().color(Color32::WHITE));
                                                             
                                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                                             let mut combo_style = (*ctx.style()).clone();
+                                                            // Force the popup background to pure white
                                                             combo_style.visuals.window_fill = Color32::WHITE;
                                                             combo_style.visuals.window_stroke = Stroke::new(1.0, Color32::from_gray(200));
-                                                            combo_style.visuals.window_rounding = Rounding::same(12.0);
+                                                            combo_style.visuals.window_rounding = Rounding::same(16.0);
+                                                            
+                                                            // Widget styling for the closed ComboBox and popup items
                                                             combo_style.visuals.widgets.inactive.bg_fill = Color32::WHITE;
                                                             combo_style.visuals.widgets.hovered.bg_fill = Color32::from_gray(230);
-                                                            combo_style.visuals.widgets.inactive.rounding = Rounding::same(12.0);
-                                                            combo_style.spacing.button_padding = egui::vec2(16.0, 16.0); // Make it taller
+                                                            combo_style.visuals.widgets.active.bg_fill = Color32::from_gray(200);
+                                                            combo_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                                            
+                                                            // Fix the selected item color in the popup list
+                                                            combo_style.visuals.selection.bg_fill = Color32::from_gray(220);
+                                                            combo_style.visuals.selection.stroke = Stroke::NONE;
+                                                            
+                                                            combo_style.spacing.button_padding = egui::vec2(24.0, 20.0);
+                                                            combo_style.spacing.item_spacing = egui::vec2(16.0, 16.0);
                                                             ui.set_style(combo_style);
 
                                                             let mut current_speed = state.playback_speed;
                                                             #[allow(deprecated)]
                                                             egui::ComboBox::from_id_source("vid_speed")
-                                                                .width(80.0) // Make it bigger
-                                                                .selected_text(egui::RichText::new(format!("{}x", current_speed)).color(BUTTON_COLOR).size(22.0).strong())
+                                                                .width(100.0) // Even bigger target
+                                                                .selected_text(egui::RichText::new(format!("{}x", current_speed)).color(BUTTON_COLOR).size(26.0).strong())
                                                                 .show_ui(ui, |ui| {
                                                                     ui.style_mut().visuals.override_text_color = Some(BUTTON_COLOR);
-                                                                    ui.selectable_value(&mut current_speed, 0.5, egui::RichText::new("0.5x").size(20.0));
-                                                                    ui.selectable_value(&mut current_speed, 1.0, egui::RichText::new("1.0x").size(20.0));
-                                                                    ui.selectable_value(&mut current_speed, 2.0, egui::RichText::new("2.0x").size(20.0));
-                                                                    ui.selectable_value(&mut current_speed, 3.0, egui::RichText::new("3.0x").size(20.0));
+                                                                    ui.selectable_value(&mut current_speed, 0.5, egui::RichText::new("0.5x").size(24.0));
+                                                                    ui.selectable_value(&mut current_speed, 1.0, egui::RichText::new("1.0x").size(24.0));
+                                                                    ui.selectable_value(&mut current_speed, 2.0, egui::RichText::new("2.0x").size(24.0));
+                                                                    ui.selectable_value(&mut current_speed, 3.0, egui::RichText::new("3.0x").size(24.0));
                                                                 });
                                                             if current_speed != state.playback_speed {
                                                                 state.playback_speed = current_speed;
