@@ -36,11 +36,12 @@ impl<'a> UI<'a> {
         style.spacing.scroll.bar_inner_margin = 0.0;
         style.spacing.scroll.bar_outer_margin = 0.0;
         
+        style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+        style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
+        style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
+        style.visuals.widgets.noninteractive.bg_fill = Color32::TRANSPARENT;
+        
         ctx.set_style(style);
-
-        if ctx.input(|i| i.pointer.is_moving() || i.pointer.any_click() || i.pointer.any_down()) {
-            self.app.last_mouse_move = std::time::Instant::now();
-        }
 
         if self.app.show_results {
             self.render_results(ctx);
@@ -88,41 +89,16 @@ impl<'a> UI<'a> {
         response.clicked()
     }
 
-    fn draw_chevron_btn(
-        ui: &mut egui::Ui,
-        size: f32,
-        bg: Color32,
-        rounding: f32,
-        point_left: bool,
-    ) -> bool {
-        let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
-        let hover_col = if response.hovered() || response.is_pointer_button_down_on() {
-            Color32::from_black_alpha(25)
-        } else {
-            Color32::TRANSPARENT
-        };
-        let bg_col = if bg == Color32::TRANSPARENT { hover_col } else { bg };
-        ui.painter().rect_filled(rect, Rounding::same(rounding), bg_col);
-
-        let center = rect.center();
-        let s = size * 0.2;
-        let offset_x = if point_left { s * 0.5 } else { -s * 0.5 };
-        
-        let p1 = center + egui::vec2(offset_x, -s);
-        let p2 = center + egui::vec2(-offset_x, 0.0);
-        let p3 = center + egui::vec2(offset_x, s);
-
-        ui.painter().line_segment([p1, p2], Stroke::new(3.0, PRIMARY_TEXT_COLOR));
-        ui.painter().line_segment([p2, p3], Stroke::new(3.0, PRIMARY_TEXT_COLOR));
-
-        response.clicked()
-    }
-
     fn render_grid(&mut self, ctx: &egui::Context) {
         let scan_text = self.app.translations.get("scan", self.app.language).to_string();
         let menu_tex = self.app.icons.menu.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            let mut style = (*ctx.style()).clone();
+            style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
+            style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
+            ui.set_style(style);
+
             egui::Area::new(Id::new("options_btn_area"))
                 .order(egui::Order::Foreground)
                 .anchor(egui::Align2::RIGHT_TOP, [-50.0, 50.0])
@@ -242,6 +218,10 @@ impl<'a> UI<'a> {
                         ui.label(egui::RichText::new(&tutorial).size(20.0).color(PRIMARY_TEXT_COLOR));
                         ui.add_space(32.0);
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let mut style = (*ctx.style()).clone();
+                            style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
+                            ui.set_style(style);
+
                             let btn_next = egui::Button::new(
                                 egui::RichText::new(&next).size(22.0).color(ACTION_BUTTON_COLOR)
                             ).frame(false);
@@ -495,54 +475,47 @@ impl<'a> UI<'a> {
     fn render_results(&mut self, ctx: &egui::Context) {
         let back_tex = self.app.icons.back.clone();
         let info_tex = self.app.icons.info.clone();
+        let cl_tex   = self.app.icons.chevron_left.clone();
+        let cr_tex   = self.app.icons.chevron_right.clone();
 
         let audio_handle = self.app.file_handler.audio_handle.clone();
 
-        // Overlay fade-out logic
-        let time_since_move = self.app.last_mouse_move.elapsed().as_secs_f32();
-        let overlay_alpha = if time_since_move < 2.0 {
-            1.0
-        } else if time_since_move < 3.0 {
-            1.0 - (time_since_move - 2.0)
-        } else {
-            0.0
-        };
-
         egui::CentralPanel::default().show(ctx, |ui| {
-            // --- AUTO-HIDING TOP NAVIGATION ---
-            if overlay_alpha > 0.0 {
-                egui::Area::new(Id::new("back_area"))
-                    .order(egui::Order::Foreground)
-                    .anchor(egui::Align2::LEFT_TOP, [34.0, 34.0])
-                    .show(ctx, |ui| {
-                        ui.multiply_opacity(overlay_alpha);
-                        if Self::icon_btn(ui, &back_tex, 56.0, SECONDARY_BUTTON_BG, 12.0) {
-                            use crate::file_handler::FileContent;
-                            if let Some(FileContent::Video(state)) = &mut self.app.current_file {
-                                if let Some(mut child) = state.child_process.take() {
-                                    let _ = child.kill();
-                                }
-                                if let Some(sink) = &state.audio_sink { sink.stop(); }
-                            } else if let Some(FileContent::Audio(state)) = &self.app.current_file {
-                                state.sink.stop();
+            let mut style = (*ctx.style()).clone();
+            style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
+            style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
+            ui.set_style(style);
+            
+            // --- TOP NAVIGATION ---
+            egui::Area::new(Id::new("back_area"))
+                .order(egui::Order::Foreground)
+                .anchor(egui::Align2::LEFT_TOP, [34.0, 34.0])
+                .show(ctx, |ui| {
+                    if Self::icon_btn(ui, &back_tex, 56.0, SECONDARY_BUTTON_BG, 12.0) {
+                        use crate::file_handler::FileContent;
+                        if let Some(FileContent::Video(child_arc)) = &self.app.current_file {
+                            if let Ok(mut child) = child_arc.lock() {
+                                let _ = child.kill();
+                                let _ = child.wait();
                             }
-                            self.app.show_results = false;
-                            self.app.current_file = None;
-                            self.app.pdf_page = 0;
+                        } else if let Some(FileContent::Audio(state)) = &self.app.current_file {
+                            state.sink.stop();
                         }
-                    });
+                        self.app.show_results = false;
+                        self.app.current_file = None;
+                        self.app.pdf_page = 0;
+                    }
+                });
 
-                egui::Area::new(Id::new("info_area"))
-                    .order(egui::Order::Foreground)
-                    .anchor(egui::Align2::RIGHT_TOP, [-34.0, 34.0])
-                    .show(ctx, |ui| {
-                        ui.multiply_opacity(overlay_alpha);
-                        if Self::icon_btn(ui, &info_tex, 56.0, SECONDARY_BUTTON_BG, 12.0) {
-                            let project_code = self.app.current_code.clone();
-                            self.app.load_explanation(&project_code);
-                        }
-                    });
-            }
+            egui::Area::new(Id::new("info_area"))
+                .order(egui::Order::Foreground)
+                .anchor(egui::Align2::RIGHT_TOP, [-34.0, 34.0])
+                .show(ctx, |ui| {
+                    if Self::icon_btn(ui, &info_tex, 56.0, SECONDARY_BUTTON_BG, 12.0) {
+                        let project_code = self.app.current_code.clone();
+                        self.app.load_explanation(&project_code);
+                    }
+                });
 
             if self.app.is_loading {
                 ui.vertical_centered(|ui| {
@@ -574,8 +547,10 @@ impl<'a> UI<'a> {
                                 ui.add(egui::Image::new(&handle).max_width(a.x).max_height(a.y));
                             });
                         }
+                        
                         FileContent::Pdf(pdf_state) => {
                             let total = pdf_state.total_pages;
+                            
                             if total > 0 {
                                 ui.vertical_centered(|ui| {
                                     ui.add_space(34.0);
@@ -629,25 +604,23 @@ impl<'a> UI<'a> {
                                     }
                                 });
 
-                                if overlay_alpha > 0.0 {
-                                    egui::Area::new(Id::new("pdf_nav"))
-                                        .order(egui::Order::Foreground)
-                                        .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
-                                        .show(ctx, |ui| {
-                                            ui.multiply_opacity(overlay_alpha);
-                                            ui.horizontal(|ui| {
-                                                if page > 0 {
-                                                    if Self::draw_chevron_btn(ui, 60.0, SECONDARY_BUTTON_BG, 10.0, true) { prev = true; }
-                                                } else { ui.add_space(68.0); }
-                                                ui.add_space(30.0);
-                                                if page < total - 1 {
-                                                    if Self::draw_chevron_btn(ui, 60.0, SECONDARY_BUTTON_BG, 10.0, false) { next = true; }
-                                                }
-                                            });
+                                egui::Area::new(Id::new("pdf_nav"))
+                                    .order(egui::Order::Foreground)
+                                    .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -24.0])
+                                    .show(ctx, |ui| {
+                                        ui.horizontal(|ui| {
+                                            if page > 0 {
+                                                if Self::icon_btn(ui, &cl_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { prev = true; }
+                                            } else { ui.add_space(68.0); }
+                                            ui.add_space(30.0);
+                                            if page < total - 1 {
+                                                if Self::icon_btn(ui, &cr_tex, 60.0, SECONDARY_BUTTON_BG, 10.0) { next = true; }
+                                            }
                                         });
-                                }
+                                    });
                             }
                         }
+                        
                         FileContent::Audio(state) => {
                             ui.vertical_centered(|ui| {
                                 ui.add_space(ui.available_height() / 4.0);
@@ -678,192 +651,159 @@ impl<'a> UI<'a> {
                                     .size(24.0).strong().color(PRIMARY_TEXT_COLOR));
                                 ui.add_space(10.0);
 
-                                // FORCE SLIDER ALIGNMENT USING ALLOCATED WIDTH
-                                let screen_width = ctx.screen_rect().width();
-                                let slider_width = screen_width * 0.6;
-                                ui.allocate_ui_with_layout(
-                                    Vec2::new(slider_width, 40.0),
-                                    egui::Layout::top_down(egui::Align::Center),
-                                    |ui| {
-                                        let mut slider_style = (*ctx.style()).clone();
-                                        slider_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
-                                        slider_style.visuals.widgets.active.bg_fill = ACTION_BUTTON_COLOR;
-                                        slider_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
-                                        slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
-                                        ui.set_style(slider_style);
+                                ui.horizontal(|ui| {
+                                    // Use ui.available_width() to perfectly center the 70% width slider
+                                    let slider_w = ui.available_width() * 0.70;
+                                    let padding = (ui.available_width() - slider_w) / 2.0;
+                                    ui.add_space(padding);
+                                    
+                                    let mut slider_style = (*ctx.style()).clone();
+                                    slider_style.visuals.widgets.inactive.bg_fill = SECONDARY_BUTTON_BG;
+                                    slider_style.visuals.widgets.active.bg_fill = ACTION_BUTTON_COLOR;
+                                    slider_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                                    slider_style.visuals.selection.bg_fill = ACTION_BUTTON_COLOR;
+                                    ui.set_style(slider_style);
 
-                                        let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs)
-                                            .show_value(false)
-                                            .trailing_fill(true);
-                                        
-                                        let response = ui.add_sized([slider_width, 30.0], slider);
-                                        if response.changed() {
-                                            state.current_pos = std::time::Duration::from_secs_f32(pos_secs);
-                                        }
-                                        if response.drag_stopped() {
-                                            if let Some(handle) = &audio_handle {
-                                                let _ = state.seek(state.current_pos, handle);
-                                            }
+                                    let slider = egui::Slider::new(&mut pos_secs, 0.0..=dur_secs)
+                                        .show_value(false)
+                                        .trailing_fill(true);
+                                    
+                                    let response = ui.add_sized([slider_w, 30.0], slider);
+                                    if response.changed() {
+                                        state.current_pos = std::time::Duration::from_secs_f32(pos_secs);
+                                    }
+                                    if response.drag_stopped() {
+                                        if let Some(handle) = &audio_handle {
+                                            let _ = state.seek(state.current_pos, handle);
                                         }
                                     }
-                                );
+                                });
 
                                 ui.add_space(30.0);
 
-                                // FORCE BUTTON ALIGNMENT USING ALLOCATED WIDTH
-                                ui.allocate_ui_with_layout(
-                                    Vec2::new(400.0, 80.0),
-                                    egui::Layout::left_to_right(egui::Align::Center).with_main_justify(true),
-                                    |ui| {
-                                        let mut btn_style = (*ctx.style()).clone();
-                                        btn_style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
-                                        btn_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
-                                        btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
-                                        ui.style_mut().visuals = btn_style.visuals;
+                                // Control row perfectly centered
+                                ui.horizontal(|ui| {
+                                    // 4 buttons + 3 spaces of 10.0
+                                    // Dropdown (80) + Rewind (70) + Play/Pause (90) + Forward (70) + spaces (30) = 340 total width
+                                    let controls_w = 340.0;
+                                    let padding = (ui.available_width() - controls_w) / 2.0;
+                                    ui.add_space(padding);
+                                    
+                                    let mut btn_style = (*ctx.style()).clone();
+                                    btn_style.visuals.widgets.inactive.bg_fill = ACTION_BUTTON_COLOR;
+                                    btn_style.visuals.widgets.hovered.bg_fill = ACTION_BUTTON_COLOR.linear_multiply(0.8);
+                                    btn_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                    ui.style_mut().visuals = btn_style.visuals;
 
-                                        let mut current_speed = state.playback_speed;
-                                        egui::ComboBox::from_id_salt("audio_speed")
-                                            .width(70.0)
-                                            .selected_text(format!("{}x", current_speed))
-                                            .show_ui(ui, |ui| {
-                                                ui.selectable_value(&mut current_speed, 1.0, "1.0x");
-                                                ui.selectable_value(&mut current_speed, 1.25, "1.25x");
-                                                ui.selectable_value(&mut current_speed, 1.5, "1.5x");
-                                                ui.selectable_value(&mut current_speed, 2.0, "2.0x");
-                                            });
-                                        if current_speed != state.playback_speed {
-                                            state.playback_speed = current_speed;
-                                            state.sink.set_speed(current_speed);
-                                        }
+                                    // Speed Dropdown
+                                    let mut current_speed = state.playback_speed;
+                                    egui::ComboBox::from_id_salt("audio_speed")
+                                        .width(80.0)
+                                        .selected_text(format!("{}x", current_speed))
+                                        .show_ui(ui, |ui| {
+                                            ui.selectable_value(&mut current_speed, 1.0, "1.0x");
+                                            ui.selectable_value(&mut current_speed, 1.25, "1.25x");
+                                            ui.selectable_value(&mut current_speed, 1.5, "1.5x");
+                                            ui.selectable_value(&mut current_speed, 2.0, "2.0x");
+                                        });
+                                    if current_speed != state.playback_speed {
+                                        state.playback_speed = current_speed;
+                                        state.sink.set_speed(current_speed);
+                                    }
+                                    
+                                    ui.add_space(10.0);
 
-                                        if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(Color32::WHITE))).clicked() {
-                                            let target = (state.current_pos.as_secs_f32() - 10.0).max(0.0);
-                                            let target_dur = std::time::Duration::from_secs_f32(target);
-                                            if let Some(handle) = &audio_handle {
-                                                let _ = state.seek(target_dur, handle);
-                                            }
-                                        }
-
-                                        let icon = if state.is_playing { "⏸" } else { "▶" };
-                                        let btn = egui::Button::new(egui::RichText::new(icon).size(36.0).color(Color32::WHITE));
-                                        if ui.add_sized([90.0, 75.0], btn).clicked() {
-                                            if state.is_playing {
-                                                state.sink.pause();
-                                                state.is_playing = false;
-                                            } else {
-                                                if dur_secs > 0.0 && state.current_pos.as_secs_f32() >= dur_secs - 0.5 {
-                                                    state.current_pos = std::time::Duration::ZERO;
-                                                    if let Some(handle) = &audio_handle {
-                                                        let _ = state.seek(std::time::Duration::ZERO, handle);
-                                                    }
-                                                }
-                                                state.sink.play();
-                                                state.is_playing = true;
-                                                state.last_update = std::time::Instant::now();
-                                            }
-                                        }
-
-                                        if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(Color32::WHITE))).clicked() {
-                                            let target = (state.current_pos.as_secs_f32() + 10.0).min(dur_secs);
-                                            let target_dur = std::time::Duration::from_secs_f32(target);
-                                            if let Some(handle) = &audio_handle {
-                                                let _ = state.seek(target_dur, handle);
-                                            }
+                                    // Rewind
+                                    if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏪").size(24.0).color(Color32::WHITE))).clicked() {
+                                        let target = (state.current_pos.as_secs_f32() - 10.0).max(0.0);
+                                        let target_dur = std::time::Duration::from_secs_f32(target);
+                                        if let Some(handle) = &audio_handle {
+                                            let _ = state.seek(target_dur, handle);
                                         }
                                     }
-                                );
+                                    ui.add_space(10.0);
+
+                                    // Play / Pause
+                                    let icon = if state.is_playing { "⏸" } else { "▶" };
+                                    let btn = egui::Button::new(egui::RichText::new(icon).size(36.0).color(Color32::WHITE));
+                                    if ui.add_sized([90.0, 75.0], btn).clicked() {
+                                        if state.is_playing {
+                                            state.sink.pause();
+                                            state.is_playing = false;
+                                        } else {
+                                            if dur_secs > 0.0 && state.current_pos.as_secs_f32() >= dur_secs - 0.5 {
+                                                state.current_pos = std::time::Duration::ZERO;
+                                                if let Some(handle) = &audio_handle {
+                                                    let _ = state.seek(std::time::Duration::ZERO, handle);
+                                                }
+                                            }
+                                            state.sink.play();
+                                            state.is_playing = true;
+                                            state.last_update = std::time::Instant::now();
+                                        }
+                                    }
+                                    ui.add_space(10.0);
+
+                                    // Forward
+                                    if ui.add_sized([70.0, 60.0], egui::Button::new(egui::RichText::new("⏩").size(24.0).color(Color32::WHITE))).clicked() {
+                                        let target = (state.current_pos.as_secs_f32() + 10.0).min(dur_secs);
+                                        let target_dur = std::time::Duration::from_secs_f32(target);
+                                        if let Some(handle) = &audio_handle {
+                                            let _ = state.seek(target_dur, handle);
+                                        }
+                                    }
+                                });
                             });
                         }
                         
-                        FileContent::Video(state) => {
-                            if state.is_playing {
-                                let now = std::time::Instant::now();
-                                let dt = now.duration_since(state.last_update).as_secs_f32();
-                                state.last_update = now;
-                                state.current_time += dt;
+                        FileContent::Video(child_arc) => {
+                            ui.vertical_centered(|ui| {
+                                ui.add_space(ui.available_height() / 4.0);
+                                ui.label(egui::RichText::new(&self.app.current_code).size(48.0).strong().color(PRIMARY_TEXT_COLOR));
+                                ui.add_space(20.0);
                                 
-                                let expected_frame = (state.current_time * state.fps) as usize;
-                                while state.current_frame < expected_frame {
-                                    if let Ok(img) = state.rx.try_recv() {
-                                        state.texture = Some(ctx.load_texture("vid_frame", img, Default::default()));
-                                        state.current_frame += 1;
-                                    } else {
-                                        break;
+                                // Cleaned up video player logic.
+                                // Instead of making it look like a crash/error, we present it as a clean "Video is open in another app" control page.
+                                ui.label(egui::RichText::new("External Video Player Active").size(24.0).color(SECONDARY_TEXT_COLOR));
+                                ui.add_space(40.0);
+                                
+                                let mut is_running = false;
+                                if let Ok(mut child) = child_arc.lock() {
+                                    match child.try_wait() {
+                                        Ok(Some(_)) => { is_running = false; }
+                                        Ok(None) => { is_running = true; }
+                                        Err(_) => { is_running = false; }
                                     }
                                 }
-                                ctx.request_repaint();
-                            } else {
-                                state.last_update = std::time::Instant::now();
-                            }
-                            
-                            // Render Video Frame
-                            ui.vertical_centered(|ui| {
-                                if let Some(tex) = &state.texture {
-                                    let screen = ctx.screen_rect();
-                                    let max_h = screen.height() - 200.0;
-                                    let max_w = screen.width() - 40.0;
-                                    
-                                    let aspect = state.width as f32 / state.height as f32;
-                                    let mut render_w = max_w;
-                                    let mut render_h = render_w / aspect;
-                                    
-                                    if render_h > max_h {
-                                        render_h = max_h;
-                                        render_w = render_h * aspect;
-                                    }
-                                    
-                                    ui.add_space((ui.available_height() - render_h - 100.0).max(0.0) / 2.0);
-                                    ui.add(egui::Image::new(tex).fit_to_exact_size(egui::vec2(render_w, render_h)));
+
+                                if is_running {
+                                    ui.label(egui::RichText::new("Return to your desktop to view the video.").size(18.0).color(SECONDARY_TEXT_COLOR));
+                                    ui.add_space(30.0);
+
+                                    // Stop button centered
+                                    ui.horizontal(|ui| {
+                                        let btn_w = 240.0;
+                                        let padding = (ui.available_width() - btn_w) / 2.0;
+                                        ui.add_space(padding);
+                                        
+                                        let mut style = (*ctx.style()).clone();
+                                        style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(250, 88, 88); 
+                                        style.visuals.widgets.hovered.bg_fill = Color32::from_rgb(200, 60, 60);
+                                        style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                        ui.style_mut().visuals = style.visuals;
+
+                                        let btn = egui::Button::new(egui::RichText::new("⏹ Close Video").size(24.0).color(Color32::WHITE));
+                                        if ui.add_sized([btn_w, 75.0], btn).clicked() {
+                                            if let Ok(mut child) = child_arc.lock() {
+                                                let _ = child.kill();
+                                                let _ = child.wait();
+                                            }
+                                        }
+                                    });
                                 } else {
-                                    ui.add_space(ui.available_height() / 2.0);
-                                    ui.spinner();
+                                    ui.label(egui::RichText::new("The video has finished playing.").size(18.0).color(SECONDARY_TEXT_COLOR));
                                 }
                             });
-
-                            // Autohiding Video Controls
-                            if overlay_alpha > 0.0 {
-                                egui::Area::new(Id::new("vid_controls"))
-                                    .order(egui::Order::Foreground)
-                                    .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -40.0])
-                                    .show(ctx, |ui| {
-                                        ui.multiply_opacity(overlay_alpha);
-                                        egui::Frame::none()
-                                            .fill(Color32::from_black_alpha(200))
-                                            .rounding(Rounding::same(16.0))
-                                            .inner_margin(Margin::symmetric(24.0, 16.0))
-                                            .show(ui, |ui| {
-                                                ui.horizontal(|ui| {
-                                                    let mut btn_style = (*ctx.style()).clone();
-                                                    btn_style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-                                                    btn_style.visuals.widgets.hovered.bg_fill = Color32::from_white_alpha(50);
-                                                    ui.style_mut().visuals = btn_style.visuals;
-
-                                                    let icon = if state.is_playing { "⏸" } else { "▶" };
-                                                    if ui.add_sized([40.0, 40.0], egui::Button::new(egui::RichText::new(icon).size(24.0).color(Color32::WHITE))).clicked() {
-                                                        state.is_playing = !state.is_playing;
-                                                        if let Some(sink) = &state.audio_sink {
-                                                            if state.is_playing { sink.play(); } else { sink.pause(); }
-                                                        }
-                                                    }
-
-                                                    ui.add_space(16.0);
-                                                    
-                                                    let mut pos = state.current_time;
-                                                    let slider = egui::Slider::new(&mut pos, 0.0..=state.duration)
-                                                        .show_value(false)
-                                                        .trailing_fill(true);
-                                                    
-                                                    let slider_w = ctx.screen_rect().width() * 0.5;
-                                                    let resp = ui.add_sized([slider_w, 20.0], slider);
-                                                    if resp.drag_stopped() {
-                                                        if let Some(handle) = &audio_handle {
-                                                            state.seek(pos, handle);
-                                                        }
-                                                    }
-                                                });
-                                            });
-                                    });
-                            }
                         }
 
                         FileContent::Html(h) => {
