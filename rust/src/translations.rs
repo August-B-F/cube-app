@@ -24,10 +24,16 @@ impl Translations {
         en.insert("fontSize".to_string(), "Font Size".to_string());
         en.insert("autoScan".to_string(), "Auto Scan".to_string());
         en.insert("scan".to_string(), "SCAN".to_string());
-        en.insert("welcome".to_string(), "Welcome to the tutorial!".to_string());
-        en.insert("tutorial".to_string(), "This is a simple tutorial to help you get started with the app. It shows how to use the app.".to_string());
-        en.insert("skip".to_string(), "Skip tutorial".to_string());
+        en.insert("welcome".to_string(), "Welcome!".to_string());
+        en.insert("tut_step1_title".to_string(), "Input Pattern".to_string());
+        en.insert("tut_step1_desc".to_string(), "Tap the squares on the grid to input your unique pattern. Each code unlocks a different memory or media file.".to_string());
+        en.insert("tut_step2_title".to_string(), "Scan the Code".to_string());
+        en.insert("tut_step2_desc".to_string(), "Once your pattern is ready, tap the SCAN button at the bottom to load the content.".to_string());
+        en.insert("tut_step3_title".to_string(), "Explore Media".to_string());
+        en.insert("tut_step3_desc".to_string(), "Watch videos, listen to audio, or read documents. Tap the info icon in the top right for details about the current file.".to_string());
+        en.insert("skip".to_string(), "Skip".to_string());
         en.insert("next".to_string(), "Next".to_string());
+        en.insert("done".to_string(), "Done".to_string());
         en.insert("close".to_string(), "Close".to_string());
         translations.insert("en".to_string(), en);
         
@@ -41,10 +47,16 @@ impl Translations {
         it.insert("fontSize".to_string(), "Dimensione Carattere".to_string());
         it.insert("autoScan".to_string(), "Scansione Automatica".to_string());
         it.insert("scan".to_string(), "SCANSIONA".to_string());
-        it.insert("welcome".to_string(), "Benvenuto nel tutorial!".to_string());
-        it.insert("tutorial".to_string(), "Questo è un semplice tutorial per aiutarti a iniziare con l'app. Mostra come usare l'app.".to_string());
-        it.insert("skip".to_string(), "Salta tutorial".to_string());
+        it.insert("welcome".to_string(), "Benvenuto!".to_string());
+        it.insert("tut_step1_title".to_string(), "Inserisci il Pattern".to_string());
+        it.insert("tut_step1_desc".to_string(), "Tocca i quadrati sulla griglia per inserire il tuo pattern unico. Ogni codice sblocca una memoria diversa.".to_string());
+        it.insert("tut_step2_title".to_string(), "Scansiona il Codice".to_string());
+        it.insert("tut_step2_desc".to_string(), "Una volta pronto il pattern, tocca il pulsante SCANSIONA in basso per caricare il contenuto.".to_string());
+        it.insert("tut_step3_title".to_string(), "Esplora i Media".to_string());
+        it.insert("tut_step3_desc".to_string(), "Guarda video, ascolta audio o leggi documenti. Tocca l'icona delle info in alto a destra per i dettagli.".to_string());
+        it.insert("skip".to_string(), "Salta".to_string());
         it.insert("next".to_string(), "Avanti".to_string());
+        it.insert("done".to_string(), "Fatto".to_string());
         it.insert("close".to_string(), "Chiudi".to_string());
         translations.insert("it".to_string(), it);
         
