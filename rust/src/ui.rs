@@ -31,10 +31,17 @@ impl<'a> UI<'a> {
         style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
         style.visuals.widgets.active.bg_stroke = Stroke::NONE;
         
-        // Hide scrollbars globally so they don't appear in touch interfaces
+        // Ensure scrollbars are totally invisible even on hover/interaction
         style.spacing.scroll.bar_width = 0.0;
         style.spacing.scroll.handle_min_length = 0.0;
+        style.spacing.scroll.bar_inner_margin = 0.0;
+        style.spacing.scroll.bar_outer_margin = 0.0;
+        
+        // Hide the scroll bar elements via transparent fills
         style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+        style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
+        style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
+        style.visuals.widgets.noninteractive.bg_fill = Color32::TRANSPARENT;
         
         ctx.set_style(style);
 
@@ -89,6 +96,12 @@ impl<'a> UI<'a> {
         let menu_tex = self.app.icons.menu.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            // Restore proper button hover styles inside panels
+            let mut style = (*ctx.style()).clone();
+            style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
+            style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
+            ui.set_style(style);
+
             egui::Area::new(Id::new("options_btn_area"))
                 .order(egui::Order::Foreground)
                 .anchor(egui::Align2::RIGHT_TOP, [-50.0, 50.0])
@@ -208,6 +221,10 @@ impl<'a> UI<'a> {
                         ui.label(egui::RichText::new(&tutorial).size(20.0).color(PRIMARY_TEXT_COLOR));
                         ui.add_space(32.0);
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let mut style = (*ctx.style()).clone();
+                            style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
+                            ui.set_style(style);
+
                             let btn_next = egui::Button::new(
                                 egui::RichText::new(&next).size(22.0).color(ACTION_BUTTON_COLOR)
                             ).frame(false);
@@ -465,6 +482,11 @@ impl<'a> UI<'a> {
         let cr_tex   = self.app.icons.chevron_right.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            // Restore button hover states inside the panel so top buttons still react
+            let mut style = (*ctx.style()).clone();
+            style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
+            style.visuals.widgets.active.bg_fill = Color32::from_black_alpha(30);
+            ui.set_style(style);
             
             // --- TOP NAVIGATION ---
             egui::Area::new(Id::new("back_area"))
@@ -556,10 +578,19 @@ impl<'a> UI<'a> {
                                 let current_zoom = self.app.pdf_zoom;
                                 let tex_opt = pdf_state.get_page(ctx, page, current_zoom);
 
+                                // Ensure scrollbars are totally removed from PDF canvas
+                                let mut scroll_style = (*ctx.style()).clone();
+                                scroll_style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
+                                scroll_style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
+                                scroll_style.spacing.scroll.bar_width = 0.0;
+                                scroll_style.spacing.scroll.handle_min_length = 0.0;
+                                
                                 egui::ScrollArea::both()
                                     .auto_shrink([false, false])
                                     .max_height(ui.available_height() - 100.0)
                                     .show(ui, |ui| {
+                                    ui.set_style(scroll_style);
+                                        
                                     if let Some(tex) = tex_opt {
                                         let display_height = (ctx.screen_rect().height() - 200.0) * current_zoom;
                                         let aspect = tex.size()[0] as f32 / tex.size()[1] as f32;

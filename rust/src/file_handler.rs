@@ -45,12 +45,9 @@ pub struct PdfState {
     pub path: PathBuf,
     pub total_pages: usize,
     pub cached_pages: HashMap<(usize, u32), TextureHandle>,
-    // Track requests in flight so we don't spawn multiple threads for the same page/zoom
     pub pending_requests: std::collections::HashSet<(usize, u32)>,
-    // Channel for receiving finished textures from background threads
     pub rx: std::sync::mpsc::Receiver<((usize, u32), ColorImage)>,
     pub tx: std::sync::mpsc::Sender<((usize, u32), ColorImage)>,
-    // Track the latest requested zoom so worker threads can abort stale work
     pub latest_request: Arc<Mutex<(usize, u32)>>,
 }
 
@@ -71,12 +68,10 @@ impl PdfState {
     pub fn get_page(&mut self, ctx: &egui::Context, page: usize, zoom: f32) -> Option<TextureHandle> {
         let zoom_level = (zoom * 10.0).round() as u32;
 
-        // Update the global latest request so running threads know what we actually want
         if let Ok(mut latest) = self.latest_request.lock() {
             *latest = (page, zoom_level);
         }
 
-        // Drain any newly completed renders
         while let Ok(((p, z), color_image)) = self.rx.try_recv() {
             let texture = ctx.load_texture(
                 format!("pdf_p{}_z{}", p, z), 
@@ -85,15 +80,13 @@ impl PdfState {
             );
             self.cached_pages.insert((p, z), texture);
             self.pending_requests.remove(&(p, z));
-            ctx.request_repaint(); // force a redraw now that we have the image
+            ctx.request_repaint(); 
         }
 
-        // Return cached texture if we have it
         if let Some(tex) = self.cached_pages.get(&(page, zoom_level)) {
             return Some(tex.clone());
         }
 
-        // Only start a render if we aren't already rendering this exact combination
         if !self.pending_requests.contains(&(page, zoom_level)) {
             self.pending_requests.insert((page, zoom_level));
             
@@ -102,19 +95,17 @@ impl PdfState {
             let ctx_clone = ctx.clone();
             let latest_req_clone = self.latest_request.clone();
 
-            // Drastically bump the base resolution for ultra-crisp text on large screens,
-            // but keep the ceiling at 8192 to prevent OpenGL crashes.
-            let max_pixels = (2400.0 * zoom).clamp(2400.0, 8192.0) as u32;
+            // Pushing the max limits of OpenGL texture support (usually 16384). 
+            // This is double what we had before, ensuring massive crispness at 10x zoom.
+            let max_pixels = (2400.0 * zoom).clamp(2400.0, 16000.0) as u32;
 
             std::thread::spawn(move || {
-                // If the user scrolled rapidly while this thread was waiting in the OS queue, abort early.
                 if let Ok(latest) = latest_req_clone.lock() {
                     if *latest != (page, zoom_level) { return; }
                 }
 
                 let output = Command::new("pdftoppm")
                     .arg("-jpeg")
-                    // Instead of DPI which gets fuzzy, we force a minimum high resolution scaled to the zoom
                     .arg("-scale-to")
                     .arg(max_pixels.to_string())
                     .arg("-cropbox")
@@ -127,7 +118,6 @@ impl PdfState {
 
                 if let Ok(output) = output {
                     if output.status.success() {
-                        // Check again before doing the heavy image processing work
                         if let Ok(latest) = latest_req_clone.lock() {
                             if *latest != (page, zoom_level) { return; }
                         }
@@ -138,7 +128,6 @@ impl PdfState {
                             let pixels = image_buffer.as_flat_samples();
                             let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
                             
-                            // Send it back to main thread
                             let _ = tx.send(((page, zoom_level), color_image));
                             ctx_clone.request_repaint();
                         }
@@ -147,7 +136,6 @@ impl PdfState {
             });
         }
         
-        // Find the best available fallback texture (closest to desired zoom)
         let mut best_fallback = None;
         let mut closest_diff = u32::MAX;
 
