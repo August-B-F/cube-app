@@ -40,14 +40,16 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
     let opt = usvg::Options::default();
     let tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
     
+    // Render at 4x resolution to keep icons crisp on high-DPI/touch screens
+    let scale = 4.0;
     let size = tree.size();
-    let width = size.width() as u32;
-    let height = size.height() as u32;
+    let width = (size.width() * scale) as u32;
+    let height = (size.height() * scale) as u32;
 
     let mut pixmap = tiny_skia::Pixmap::new(width, height).unwrap();
     resvg::render(
         &tree,
-        Transform::default(),
+        Transform::from_scale(scale, scale),
         &mut pixmap.as_mut(),
     );
 
@@ -56,5 +58,7 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
         pixmap.data(),
     );
 
-    ctx.load_texture(name, image, Default::default())
+    // Use LINEAR options for smooth downscaling
+    let options = eframe::egui::TextureOptions::LINEAR;
+    ctx.load_texture(name, image, options)
 }
