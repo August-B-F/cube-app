@@ -489,7 +489,8 @@ impl<'a> UI<'a> {
                 .anchor(egui::Align2::RIGHT_TOP, [-34.0, 34.0])
                 .show(ctx, |ui| {
                     if Self::icon_btn(ui, &info_tex, 56.0, SECONDARY_BUTTON_BG, 12.0) {
-                        self.app.show_explanation = true;
+                        let project_code = self.app.current_code.clone();
+                        self.app.load_explanation(&project_code);
                     }
                 });
 
@@ -552,7 +553,7 @@ impl<'a> UI<'a> {
 
                                     // Let egui handle trackpad/wheel zoom gracefully via ctx
                                     if ui.ui_contains_pointer() {
-                                        let scroll_delta = ctx.input(|i| i.scroll_delta.y);
+                                        let scroll_delta = ctx.input(|i| i.raw_scroll_delta.y);
                                         if ctx.input(|i| i.modifiers.ctrl) && scroll_delta.abs() > 0.1 {
                                             pdf_zoom_delta += scroll_delta * 0.005; // smooth trackpad zoom
                                         }

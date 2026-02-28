@@ -20,16 +20,13 @@ pub struct AudioState {
 impl AudioState {
     pub fn seek(&mut self, target: Duration, handle: &rodio::OutputStreamHandle) -> Result<(), String> {
         let file = std::fs::File::open(&self.path).map_err(|e| e.to_string())?;
-        let mut decoder = rodio::Decoder::new(std::io::BufReader::new(file)).map_err(|e| e.to_string())?;
+        let decoder = rodio::Decoder::new(std::io::BufReader::new(file)).map_err(|e| e.to_string())?;
         
         self.sink.stop();
         
         let new_sink = rodio::Sink::try_new(handle).map_err(|e| e.to_string())?;
         
-        // rodio::Source trait implementation of `skip_duration` requires the `Source` trait
         use rodio::Source;
-        // rodio doesn't easily support dynamic seeking on all formats natively without nightly or specific types. 
-        // For a simple implementation we re-create the sink. If it's MP3/WAV, rodio 0.19 `skip_duration` can work but returns a new source type.
         let skipped = decoder.skip_duration(target);
         
         new_sink.append(skipped);
@@ -47,27 +44,23 @@ impl AudioState {
 pub struct PdfState {
     pub path: PathBuf,
     pub total_pages: usize,
-    // Maps (page_index, zoom_level_integer) to the loaded texture
     pub cached_pages: HashMap<(usize, u32), TextureHandle>,
 }
 
 impl PdfState {
     pub fn get_page(&mut self, ctx: &egui::Context, page: usize, zoom: f32) -> Option<TextureHandle> {
-        // Discretize zoom levels to prevent regenerating textures continuously (e.g. 1.0, 1.5, 2.0 -> integers 10, 15, 20)
         let zoom_level = (zoom * 10.0).round() as u32;
 
         if let Some(tex) = self.cached_pages.get(&(page, zoom_level)) {
             return Some(tex.clone());
         }
 
-        // Calculate DPI based on zoom. Base DPI is 150.
         let dpi = (150.0 * zoom).clamp(150.0, 600.0) as u32;
 
         let temp_dir = std::env::temp_dir().join("cube_pdf_extract_dyn");
         let _ = std::fs::create_dir_all(&temp_dir);
         let out_prefix = temp_dir.join(format!("page_{}_{}", page, dpi));
         
-        // pdftoppm uses 1-based page indexing
         let output = Command::new("pdftoppm")
             .arg("-jpeg")
             .arg("-r")
@@ -82,8 +75,6 @@ impl PdfState {
 
         if let Ok(output) = output {
             if output.status.success() {
-                // pdftoppm appends the page number like `prefix-1.jpg` (or `prefix-01.jpg`)
-                // Let's find the created file
                 if let Ok(entries) = std::fs::read_dir(&temp_dir) {
                     for entry in entries.filter_map(Result::ok) {
                         let path = entry.path();
@@ -159,7 +150,6 @@ impl FileHandler {
                 Ok(FileContent::Image(texture))
             }
             "pdf" => {
-                // First pass: use pdfinfo to get total number of pages quickly
                 let output = Command::new("pdfinfo")
                     .arg(path)
                     .output()
@@ -188,7 +178,6 @@ impl FileHandler {
             "mp4" => {
                 let path_str = path.to_string_lossy().to_string();
                 
-                // Track child process safely. Use double-buffering so Wayland/X11 mpv doesn't instantly die on modern WMs
                 let child = Command::new("mpv")
                     .arg("--fs")
                     .arg("--ontop")
@@ -203,7 +192,6 @@ impl FileHandler {
             "mp3" => {
                 if let Some(handle) = &self.audio_handle {
                     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-                    // To get duration we can parse it, or we rely on rodio
                     let source = rodio::Decoder::new(std::io::BufReader::new(file)).map_err(|e| e.to_string())?;
                     
                     use rodio::Source;
