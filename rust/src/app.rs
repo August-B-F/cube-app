@@ -1,6 +1,6 @@
 use eframe::egui;
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH, Instant};
 
 use crate::file_handler::{FileContent, FileHandler};
 use crate::history::{History, HistoryItem};
@@ -38,7 +38,8 @@ pub struct CubeApp {
 
     pub icons: Icons,
     
-    pub last_mouse_input: std::time::Instant,
+    pub last_mouse_input: Instant,
+    pub last_click_time: Instant,
 }
 
 #[derive(Clone)]
@@ -91,11 +92,24 @@ impl CubeApp {
                 "ARCHIVE", "EDITIONS", "WEBSITE", "MATRICES", "TEXTURES", "EXHIBITS",
             ],
             icons: Icons::load(&cc.egui_ctx),
-            last_mouse_input: std::time::Instant::now(),
+            last_mouse_input: Instant::now(),
+            last_click_time: Instant::now(),
+        }
+    }
+
+    pub fn is_click_valid(&mut self) -> bool {
+        let now = Instant::now();
+        if now.duration_since(self.last_click_time).as_millis() > 150 {
+            self.last_click_time = now;
+            true
+        } else {
+            false
         }
     }
 
     pub fn handle_cell_click(&mut self, row: usize, col: usize) {
+        if !self.is_click_valid() { return; }
+
         let active_indices: Vec<usize> = self.grid[row]
             .iter()
             .enumerate()
@@ -121,6 +135,8 @@ impl CubeApp {
     }
 
     pub fn scan_code(&mut self, ctx: &egui::Context) {
+        if !self.is_click_valid() { return; }
+
         let code_map = [
             ("11000", '0'), ("10100", '1'), ("10010", '2'), ("10001", '3'),
             ("01100", '4'), ("01010", '5'), ("01001", '6'),
@@ -186,6 +202,8 @@ impl CubeApp {
     }
 
     pub fn load_explanation(&mut self, project_code: &str) {
+        if !self.is_click_valid() { return; }
+
         let suffix = match self.language {
             Language::English => "explanations",
             Language::Italian => "explanations_it",
