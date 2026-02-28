@@ -1,252 +1,238 @@
-use eframe::egui;
-use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use eframe::egui::{TextureHandle, Context};
+use std::collections::VecDeque;
+use chrono::{DateTime, Utc};
+use crate::file_handler::FileHandler;
+use crate::translations::{Translations, Language};
 
-use crate::file_handler::{FileContent, FileHandler};
-use crate::history::{History, HistoryItem};
-use crate::icons::Icons;
-use crate::translations::{Language, Translations};
-use crate::ui::UI;
-
-pub struct CubeApp {
-    pub grid: [[u8; 5]; 5],
-    pub clicked_history: [Option<usize>; 5],
-
-    pub show_tutorial: bool,
-    pub show_results: bool,
-    pub show_options: bool,
-    pub show_history: bool,
-    pub show_explanation: bool,
-    pub is_loading: bool,
-
-    pub file_handler: FileHandler,
-    pub current_file: Option<FileContent>,
-    pub current_code: String,
-    pub content_folder: PathBuf,
-
-    pub history: History,
-    pub language: Language,
-    pub translations: Translations,
-
-    pub popups: Vec<Popup>,
-    pub pdf_page: usize,
-    pub pdf_zoom: f32,
-
-    pub explanation_content: String,
-    pub categories: Vec<&'static str>,
-
-    pub icons: Icons,
+pub struct HistoryItem {
+    pub code: String,
+    pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Clone)]
-#[allow(dead_code)]
-pub struct Popup {
-    pub id: u64,
-    pub message: String,
-    pub popup_type: PopupType,
-    pub created_at: SystemTime,
+pub struct History {
+    items: VecDeque<HistoryItem>,
+    max_items: usize,
+}
+
+impl History {
+    pub fn new() -> Self {
+        Self {
+            items: VecDeque::new(),
+            max_items: 20,
+        }
+    }
+    pub fn add(&mut self, code: String) {
+        self.items.retain(|i| i.code != code);
+        self.items.push_front(HistoryItem {
+            code,
+            timestamp: Utc::now(),
+        });
+        if self.items.len() > self.max_items {
+            self.items.pop_back();
+        }
+    }
+    pub fn get_items(&self) -> &VecDeque<HistoryItem> {
+        &self.items
+    }
+}
+
+pub struct Icons {
+    pub menu: TextureHandle,
+    pub history: TextureHandle,
+    pub help: TextureHandle,
+    pub language: TextureHandle,
+    pub back: TextureHandle,
+    pub info: TextureHandle,
+    pub chevron_left: TextureHandle,
+    pub chevron_right: TextureHandle,
+    pub error: TextureHandle,
+    pub success: TextureHandle,
+}
+
+impl Icons {
+    pub fn load(ctx: &Context) -> Self {
+        let load_svg = |name: &str| -> TextureHandle {
+            let path = format!("../assets/icons/{}.svg", name);
+            let svg_data = std::fs::read(&path).unwrap_or_else(|_| panic!("Missing {}", path));
+            
+            let rtree = usvg::Tree::from_data(&svg_data, &usvg::Options::default()).unwrap();
+            
+            let zoom = 2.0; 
+            let pixmap_size = rtree.size().to_int_size().scale_by(zoom).unwrap();
+            let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
+            
+            let transform = tiny_skia::Transform::from_scale(zoom, zoom);
+            resvg::render(&rtree, transform, &mut pixmap.as_mut());
+
+            let color_image = eframe::egui::ColorImage::from_rgba_unmultiplied(
+                [pixmap.width() as _, pixmap.height() as _],
+                pixmap.data(),
+            );
+            
+            ctx.load_texture(name, color_image, Default::default())
+        };
+
+        Self {
+            menu: load_svg("menu"),
+            history: load_svg("history"),
+            help: load_svg("help"),
+            language: load_svg("language"),
+            back: load_svg("back"),
+            info: load_svg("info"),
+            chevron_left: load_svg("chevron-left"),
+            chevron_right: load_svg("chevron-right"),
+            error: load_svg("error"),
+            success: load_svg("success"),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
-#[allow(dead_code)]
 pub enum PopupType {
     Error,
     Success,
 }
 
+pub struct Popup {
+    pub id: u64,
+    pub message: String,
+    pub popup_type: PopupType,
+    pub created_at: std::time::SystemTime,
+}
+
+pub struct CubeApp {
+    pub grid: [[u8; 5]; 5],
+    pub show_results: bool,
+    pub show_tutorial: bool,
+    pub show_history: bool,
+    pub show_explanation: bool,
+    pub show_options: bool,
+    pub current_code: String,
+    pub history: History,
+    pub language: Language,
+    pub translations: Translations,
+    pub popups: Vec<Popup>,
+    pub popup_counter: u64,
+    pub icons: Icons,
+    
+    pub file_handler: FileHandler,
+    pub current_file: Option<crate::file_handler::FileContent>,
+    pub is_loading: bool,
+    pub pdf_page: usize,
+    pub pdf_zoom: f32,
+    pub explanation_content: String,
+    
+    pub last_mouse_move: std::time::Instant,
+}
+
 impl CubeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let content_folder = PathBuf::from("/media/a/2004-2040");
-
+        let icons = Icons::load(&cc.egui_ctx);
         Self {
             grid: [[0; 5]; 5],
-            clicked_history: [None; 5],
-            show_tutorial: true,
             show_results: false,
-            show_options: false,
+            show_tutorial: true,
             show_history: false,
             show_explanation: false,
-            is_loading: false,
-            file_handler: FileHandler::new(),
-            current_file: None,
+            show_options: false,
             current_code: String::new(),
-            content_folder,
             history: History::new(),
-            language: Language::English,
+            language: Language::Italian,
             translations: Translations::new(),
             popups: Vec::new(),
+            popup_counter: 0,
+            icons,
+            file_handler: FileHandler::new(),
+            current_file: None,
+            is_loading: false,
             pdf_page: 0,
             pdf_zoom: 1.0,
             explanation_content: String::new(),
-            categories: vec![
-                "ACTIONS", "DREAMS", "SONGS", "EMOTIONS", "WALKS", "HEARTBEAT",
-                "PAINTINGS", "FABLES", "THOUGHTS", "PEOPLE", "TRASH", "NEWS",
-                "PLACES", "IDEAS", "POLLUTION", "WEATHER", "CLOUDS", "WIND",
-                "ACCOUNTS", "INSIGHTS", "ESSAYS", "TOOLS", "MANUAL", "JOURNAL",
-                "PHOTOS", "ORIGINS", "FRIENDS", "FILMS", "THEATER", "LECTURES",
-                "ARCHIVE", "EDITIONS", "WEBSITE", "MATRICES", "TEXTURES", "EXHIBITS",
-            ],
-            icons: Icons::load(&cc.egui_ctx),
+            last_mouse_move: std::time::Instant::now(),
         }
     }
 
     pub fn handle_cell_click(&mut self, row: usize, col: usize) {
-        let active_indices: Vec<usize> = self.grid[row]
-            .iter()
-            .enumerate()
-            .filter(|(_, &cell)| cell == 1)
-            .map(|(i, _)| i)
-            .collect();
-
-        let last_clicked = self.clicked_history[row];
-
-        if self.grid[row][col] == 1 {
-            self.grid[row][col] = 0;
-            self.clicked_history[row] = None;
-        } else if active_indices.len() < 2 {
-            self.grid[row][col] = 1;
-            self.clicked_history[row] = Some(col);
-        } else {
-            if let Some(to_deactivate) = active_indices.iter().find(|&&i| Some(i) != last_clicked) {
-                self.grid[row][*to_deactivate] = 0;
-            }
-            self.grid[row][col] = 1;
-            self.clicked_history[row] = Some(col);
-        }
+        self.grid[row][col] = 1 - self.grid[row][col];
     }
 
-    pub fn scan_code(&mut self, ctx: &egui::Context) {
-        let code_map = [
-            ("11000", '0'), ("10100", '1'), ("10010", '2'), ("10001", '3'),
-            ("01100", '4'), ("01010", '5'), ("01001", '6'),
-            ("00110", '7'), ("00101", '8'), ("00011", '9'),
-        ];
-
-        let decoded: String = self.grid.iter().map(|row| {
-            let code: String = row.iter().map(|&c| (c + b'0') as char).collect();
-            code_map.iter().find(|(p, _)| *p == code).map(|(_, d)| *d).unwrap_or('X')
-        }).collect();
-
-        self.current_code = decoded.clone();
-
-        let extensions = ["mp3", "mp4", "txt", "pdf", "jpg", "png", "html"];
-        let mut found = false;
-
-        for ext in extensions {
-            let file_path = self.content_folder.join(format!("{}.{}", decoded, ext));
-            if file_path.exists() {
-                self.is_loading = true;
-                ctx.request_repaint(); // Show loading spinner
-                
-                match self.file_handler.load_file(ctx, &file_path) {
-                    Ok(content) => {
-                        self.current_file = Some(content);
-                        self.show_results = true;
-                        self.pdf_page = 0;
-                        self.pdf_zoom = 1.0;
-                        self.is_loading = false;
-                        self.history.add_item(HistoryItem {
-                            code: decoded.clone(),
-                            timestamp: chrono::Utc::now(),
-                            result: "Found".to_string(),
-                        });
-                        self.grid = [[0; 5]; 5];
-                        self.clicked_history = [None; 5];
-                        found = true;
-                        break;
-                    }
-                    Err(e) => {
-                        self.add_popup(format!("Error loading file: {}", e), PopupType::Error);
-                        self.is_loading = false;
-                    }
-                }
-            }
-        }
-
-        if !found {
-            self.add_popup("Project does not exist".to_string(), PopupType::Error);
-        }
-    }
-
-    pub fn add_popup(&mut self, message: String, popup_type: PopupType) {
-        let id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
-        self.popups.push(Popup { id, message, popup_type, created_at: SystemTime::now() });
-    }
-
-    pub fn update_popups(&mut self) {
-        let now = SystemTime::now();
-        self.popups.retain(|p| {
-            now.duration_since(p.created_at).map(|d| d.as_secs_f32() < 3.5).unwrap_or(false)
+    pub fn show_popup(&mut self, message: &str, popup_type: PopupType) {
+        self.popup_counter += 1;
+        self.popups.push(Popup {
+            id: self.popup_counter,
+            message: message.to_string(),
+            popup_type,
+            created_at: std::time::SystemTime::now(),
         });
     }
 
-    pub fn load_explanation(&mut self, project_code: &str) {
-        let suffix = match self.language {
-            Language::English => "explanations",
-            Language::Italian => "explanations_it",
-        };
-        let path = PathBuf::from("assets").join(suffix).join(format!("{}.txt", project_code));
-        if let Ok(content) = std::fs::read_to_string(&path) {
-            self.explanation_content = content.replace('"', "");
-            self.show_explanation = true;
-        } else {
-            self.add_popup("Failed to load explanation".to_string(), PopupType::Error);
+    pub fn get_category(&self, code: &str) -> &'static str {
+        match code.chars().next().unwrap_or('0') {
+            '0' => "Arts",
+            '1' => "History",
+            '2' => "Science",
+            '3' => "Technology",
+            _ => "General",
         }
     }
 
-    pub fn get_category(&self, project_code: &str) -> &str {
-        if project_code.len() >= 2 {
-            if let Ok(idx) = project_code[0..2].parse::<usize>() {
-                let i = (idx % self.categories.len()).saturating_sub(1);
-                return self.categories.get(i).unwrap_or(&"UNKNOWN");
-            }
-        }
-        "UNKNOWN"
+    pub fn load_explanation(&mut self, code: &str) {
+        let category = self.get_category(code);
+        let content = format!(
+            "Explanation for {} ({}).\n\n\
+            This content is typically loaded from the specific project folder.\n\
+            It includes metadata, historical context, and technical details related to the item.\n\n\
+            Project ID: {}\n\
+            Category: {}\n\
+            Language: {:?}",
+            code, category, code, category, self.language
+        );
+        self.explanation_content = content;
+        self.show_explanation = true;
     }
 
     pub fn open_history_project(&mut self, ctx: &egui::Context, code: String) {
-        let extensions = ["mp3", "mp4", "txt", "pdf", "jpg", "png", "html"];
-        for ext in extensions {
-            let file_path = self.content_folder.join(format!("{}.{}", code, ext));
-            if file_path.exists() {
-                self.is_loading = true;
-                ctx.request_repaint();
+        self.current_code = code.clone();
+        self.show_history = false;
+        self.load_project(ctx, &code);
+    }
 
-                match self.file_handler.load_file(ctx, &file_path) {
-                    Ok(content) => {
-                        self.current_file = Some(content);
-                        self.current_code = code;
-                        self.show_results = true;
-                        self.show_history = false;
-                        self.pdf_page = 0;
-                        self.pdf_zoom = 1.0;
-                        self.is_loading = false;
-                        return;
-                    }
-                    Err(e) => {
-                        self.add_popup(format!("Error: {}", e), PopupType::Error);
-                        self.is_loading = false;
-                    }
-                }
+    pub fn scan_code(&mut self, ctx: &egui::Context) {
+        let mut code = String::new();
+        for row in 0..5 {
+            for col in 0..5 {
+                code.push_str(&self.grid[row][col].to_string());
             }
         }
-        self.add_popup("Project does not exist".to_string(), PopupType::Error);
+        let hex_code = format!("{:07X}", u32::from_str_radix(&code, 2).unwrap());
+        self.current_code = hex_code.clone();
+        self.history.add(hex_code.clone());
+        self.load_project(ctx, &hex_code);
     }
-}
 
-impl eframe::App for CubeApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.update_popups();
-
-        // Keep repainting while animations or popups are active
-        if !self.popups.is_empty() || self.is_loading
-            || self.show_tutorial || self.show_options
-            || self.show_history || self.show_explanation
-        {
-            ctx.request_repaint();
+    fn load_project(&mut self, ctx: &egui::Context, code: &str) {
+        self.is_loading = true;
+        self.show_results = true;
+        self.pdf_page = 0;
+        self.pdf_zoom = 1.0;
+        
+        let file_path = crate::database::find_file(code);
+        if let Some(path) = file_path {
+            match self.file_handler.load_file(ctx, &path) {
+                Ok(content) => {
+                    self.current_file = Some(content);
+                },
+                Err(e) => {
+                    self.show_popup(&format!("Failed to load file: {}", e), PopupType::Error);
+                    self.show_results = false;
+                }
+            }
+        } else {
+            let msg = self.translations.get("notFound", self.language).to_string();
+            self.show_popup(&msg, PopupType::Error);
+            self.show_results = false;
         }
-
-        let mut ui_renderer = UI::new(self);
-        ui_renderer.render(ctx);
+        self.is_loading = false;
+        self.grid = [[0; 5]; 5];
     }
 }
