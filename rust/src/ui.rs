@@ -650,7 +650,7 @@ impl<'a> UI<'a> {
                         
                         FileContent::Audio(state) => {
                             ui.vertical(|ui| {
-                                ui.add_space(ctx.screen_rect().height() * 0.25);
+                                ui.add_space(ctx.screen_rect().height() * 0.35);
 
                                 ui.vertical_centered(|ui| {
                                     ui.label(egui::RichText::new(&self.app.current_code).size(56.0).strong().color(PRIMARY_TEXT_COLOR));
@@ -914,16 +914,28 @@ impl<'a> UI<'a> {
                                                             combo_style.visuals.window_rounding = Rounding::same(16.0);
                                                             
                                                             // Widget styling for the closed ComboBox and popup items
+                                                            for state in [
+                                                                &mut combo_style.visuals.widgets.inactive,
+                                                                &mut combo_style.visuals.widgets.hovered,
+                                                                &mut combo_style.visuals.widgets.active,
+                                                                &mut combo_style.visuals.widgets.open,
+                                                                &mut combo_style.visuals.widgets.noninteractive,
+                                                            ] {
+                                                                state.rounding = Rounding::same(16.0);
+                                                                state.bg_stroke = Stroke::NONE;
+                                                            }
                                                             combo_style.visuals.widgets.inactive.bg_fill = Color32::WHITE;
                                                             combo_style.visuals.widgets.hovered.bg_fill = Color32::from_gray(230);
                                                             combo_style.visuals.widgets.active.bg_fill = Color32::from_gray(200);
-                                                            combo_style.visuals.widgets.inactive.rounding = Rounding::same(16.0);
+                                                            combo_style.visuals.widgets.open.bg_fill = Color32::WHITE;
+                                                            combo_style.visuals.widgets.noninteractive.bg_fill = Color32::WHITE;
                                                             
                                                             // Fix the selected item color in the popup list
                                                             combo_style.visuals.selection.bg_fill = Color32::from_gray(220);
                                                             combo_style.visuals.selection.stroke = Stroke::NONE;
                                                             
-                                                            combo_style.spacing.button_padding = egui::vec2(24.0, 20.0);
+                                                            combo_style.spacing.interact_size = egui::vec2(100.0, 64.0);
+                                                            combo_style.spacing.button_padding = egui::vec2(20.0, 19.0);
                                                             combo_style.spacing.item_spacing = egui::vec2(16.0, 16.0);
                                                             ui.set_style(combo_style);
 
