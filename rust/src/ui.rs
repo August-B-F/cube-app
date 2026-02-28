@@ -188,10 +188,23 @@ impl<'a> UI<'a> {
     }
 
     fn render_tutorial(&mut self, ctx: &egui::Context, anim: f32) {
-        let welcome = self.app.translations.get("welcome", self.app.language).to_string();
-        let tutorial = self.app.translations.get("tutorial", self.app.language).to_string();
-        let skip    = self.app.translations.get("skip",     self.app.language).to_string();
-        let next    = self.app.translations.get("next",     self.app.language).to_string();
+        let skip = self.app.translations.get("skip", self.app.language).to_string();
+        let next = self.app.translations.get("next", self.app.language).to_string();
+        let done = self.app.translations.get("done", self.app.language).to_string();
+        
+        let step = self.app.tutorial_step;
+        
+        let title = match step {
+            0 => self.app.translations.get("tut_step1_title", self.app.language),
+            1 => self.app.translations.get("tut_step2_title", self.app.language),
+            _ => self.app.translations.get("tut_step3_title", self.app.language),
+        }.to_string();
+
+        let desc = match step {
+            0 => self.app.translations.get("tut_step1_desc", self.app.language),
+            1 => self.app.translations.get("tut_step2_desc", self.app.language),
+            _ => self.app.translations.get("tut_step3_desc", self.app.language),
+        }.to_string();
 
         egui::Area::new(Id::new("tut_bg"))
             .order(egui::Order::Foreground)
@@ -213,25 +226,132 @@ impl<'a> UI<'a> {
                     .rounding(Rounding::same(28.0))
                     .inner_margin(Margin::same(40.0))
                     .show(ui, |ui| {
-                        ui.set_width(480.0);
-                        ui.label(egui::RichText::new(&welcome).size(32.0).strong().color(PRIMARY_TEXT_COLOR));
+                        ui.set_width(500.0);
+                        
+                        // Visual animation area
+                        let (vis_rect, _resp) = ui.allocate_exact_size(Vec2::new(500.0, 160.0), Sense::hover());
+                        let time = ctx.input(|i| i.time);
+                        
+                        match step {
+                            0 => {
+                                // Draw a mini grid
+                                let cell_size = 22.0;
+                                let spacing = 6.0;
+                                let grid_w = 5.0 * cell_size + 4.0 * spacing;
+                                let start_x = vis_rect.center().x - grid_w / 2.0 + cell_size / 2.0;
+                                let start_y = vis_rect.center().y - grid_w / 2.0 + cell_size / 2.0;
+                                
+                                let active_col = ((time * 2.5) as usize) % 5;
+                                let active_row = ((time * 0.5) as usize) % 5;
+                                
+                                for row in 0..5 {
+                                    for col in 0..5 {
+                                        let cx = start_x + (col as f32) * (cell_size + spacing);
+                                        let cy = start_y + (row as f32) * (cell_size + spacing);
+                                        let center = Pos2::new(cx, cy);
+                                        
+                                        let is_active = row == active_row && col <= active_col;
+                                        
+                                        let fill = if is_active { BUTTON_COLOR } else { BACKGROUND_COLOR };
+                                        let stroke_w = if is_active { 4.0 } else { 2.0 };
+                                        let stroke = Stroke::new(stroke_w, BUTTON_COLOR);
+                                        
+                                        let r = Rect::from_center_size(center, Vec2::splat(cell_size));
+                                        ui.painter().rect(r, Rounding::same(6.0), fill, stroke);
+                                    }
+                                }
+                                ctx.request_repaint();
+                            }
+                            1 => {
+                                // Draw a pulsing scan button
+                                let pulse = 1.0 + (time * 4.0).sin().abs() as f32 * 0.05;
+                                let btn_size = Vec2::new(220.0 * pulse, 50.0 * pulse);
+                                let btn_rect = Rect::from_center_size(vis_rect.center(), btn_size);
+                                
+                                ui.painter().rect_stroke(btn_rect, Rounding::same(8.0), Stroke::new(4.0, BUTTON_COLOR));
+                                let scan_text = self.app.translations.get("scan", self.app.language).to_string();
+                                ui.painter().text(
+                                    btn_rect.center(), egui::Align2::CENTER_CENTER,
+                                    &scan_text, egui::FontId::proportional(20.0 * pulse), BUTTON_COLOR,
+                                );
+                                ctx.request_repaint();
+                            }
+                            _ => {
+                                // Draw simple media icons floating
+                                let float1 = (time * 3.0).sin() as f32 * 10.0;
+                                let float2 = (time * 3.0 + 2.0).sin() as f32 * 10.0;
+                                
+                                let c1 = vis_rect.center() - Vec2::new(60.0, float1);
+                                let c2 = vis_rect.center() + Vec2::new(60.0, -float2);
+                                
+                                ui.painter().circle_filled(c1, 40.0, BUTTON_COLOR);
+                                ui.painter().text(c1, egui::Align2::CENTER_CENTER, "▶", egui::FontId::proportional(32.0), Color32::WHITE);
+                                
+                                ui.painter().rect_filled(Rect::from_center_size(c2, Vec2::new(60.0, 80.0)), Rounding::same(8.0), BUTTON_COLOR);
+                                // Draw mini lines for a document
+                                let l_x1 = c2.x - 15.0;
+                                let l_x2 = c2.x + 15.0;
+                                ui.painter().line_segment([Pos2::new(l_x1, c2.y - 15.0), Pos2::new(l_x2, c2.y - 15.0)], Stroke::new(3.0, Color32::WHITE));
+                                ui.painter().line_segment([Pos2::new(l_x1, c2.y), Pos2::new(l_x2, c2.y)], Stroke::new(3.0, Color32::WHITE));
+                                ui.painter().line_segment([Pos2::new(l_x1, c2.y + 15.0), Pos2::new(l_x2, c2.y + 15.0)], Stroke::new(3.0, Color32::WHITE));
+                                
+                                ctx.request_repaint();
+                            }
+                        }
+
+                        ui.add_space(30.0);
+                        
+                        // Dots indicator
+                        ui.horizontal(|ui| {
+                            let dot_spacing = 20.0;
+                            let total_w = 3.0 * 12.0 + 2.0 * dot_spacing;
+                            ui.add_space((500.0 - total_w) / 2.0);
+                            for i in 0..3 {
+                                let color = if i == step { ACTION_BUTTON_COLOR } else { Color32::from_gray(200) };
+                                let (rect, _) = ui.allocate_exact_size(Vec2::splat(12.0), Sense::hover());
+                                ui.painter().circle_filled(rect.center(), 6.0, color);
+                                if i < 2 {
+                                    ui.add_space(dot_spacing);
+                                }
+                            }
+                        });
+                        
+                        ui.add_space(30.0);
+
+                        ui.label(egui::RichText::new(&title).size(32.0).strong().color(PRIMARY_TEXT_COLOR));
                         ui.add_space(14.0);
-                        ui.label(egui::RichText::new(&tutorial).size(20.0).color(PRIMARY_TEXT_COLOR));
+                        ui.label(egui::RichText::new(&desc).size(20.0).color(PRIMARY_TEXT_COLOR));
                         ui.add_space(32.0);
+                        
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let mut style = (*ctx.style()).clone();
                             style.visuals.widgets.hovered.bg_fill = Color32::from_black_alpha(15);
                             ui.set_style(style);
 
-                            let btn_next = egui::Button::new(
-                                egui::RichText::new(&next).size(22.0).color(BUTTON_COLOR)
-                            ).frame(false);
-                            if ui.add(btn_next).clicked() { self.app.show_tutorial = false; }
-                            ui.add_space(24.0);
-                            let btn_skip = egui::Button::new(
-                                egui::RichText::new(&skip).size(22.0).color(BUTTON_COLOR)
-                            ).frame(false);
-                            if ui.add(btn_skip).clicked() { self.app.show_tutorial = false; }
+                            if step < 2 {
+                                let btn_next = egui::Button::new(
+                                    egui::RichText::new(&next).size(22.0).color(ACTION_BUTTON_COLOR).strong()
+                                ).frame(false);
+                                if ui.add(btn_next).clicked() { self.app.tutorial_step += 1; }
+                                
+                                ui.add_space(24.0);
+                                
+                                let btn_skip = egui::Button::new(
+                                    egui::RichText::new(&skip).size(22.0).color(SECONDARY_TEXT_COLOR)
+                                ).frame(false);
+                                if ui.add(btn_skip).clicked() {
+                                    self.app.show_tutorial = false;
+                                    self.app.tutorial_step = 0;
+                                }
+                            } else {
+                                let btn_done = egui::Button::new(
+                                    egui::RichText::new(&done).size(22.0).color(ACTION_BUTTON_COLOR).strong()
+                                ).frame(false);
+                                if ui.add(btn_done).clicked() { 
+                                    self.app.show_tutorial = false; 
+                                    self.app.tutorial_step = 0;
+                                }
+                            }
                         });
                     });
             });
@@ -309,6 +429,7 @@ impl<'a> UI<'a> {
                         ui.add_space(4.0);
                         if row(ui, &help_tex, &help_str) {
                             self.app.show_tutorial = true;
+                            self.app.tutorial_step = 0;
                             self.app.show_options = false;
                         }
                         ui.add_space(4.0);
