@@ -7,7 +7,6 @@ const BUTTON_COLOR: Color32 = Color32::from_rgb(29, 27, 32);
 const PRIMARY_TEXT_COLOR: Color32 = Color32::from_rgb(29, 27, 32);
 const SECONDARY_TEXT_COLOR: Color32 = Color32::from_rgb(73, 69, 79);
 const SECONDARY_BUTTON_BG: Color32 = Color32::from_rgb(218, 207, 216); // Hex #DACFD8
-const VIDEO_ACCENT_COLOR: Color32 = Color32::from_rgb(255, 0, 0);
 
 pub struct UI<'a> {
     app: &'a mut CubeApp,
@@ -814,7 +813,7 @@ impl<'a> UI<'a> {
                                         state.is_playing = false;
                                     }
                                     
-                                    let mut pos_secs = state.current_pos.as_secs_f32();
+                                    let pos_secs = state.current_pos.as_secs_f32();
 
                                     let fmt_time = |secs: f32| -> String {
                                         let s = secs as u32;
