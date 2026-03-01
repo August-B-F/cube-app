@@ -241,8 +241,23 @@ impl<'a> UI<'a> {
                                 let start_x = vis_rect.center().x - grid_w / 2.0 + cell_size / 2.0;
                                 let start_y = vis_rect.center().y - grid_w / 2.0 + cell_size / 2.0;
                                 
-                                let active_col = ((time * 2.5) as usize) % 5;
-                                let active_row = ((time * 0.5) as usize) % 5;
+                                let cycle_time = time % 3.0;
+                                
+                                let white_targets = [
+                                    [1, 3],
+                                    [0, 4],
+                                    [2, 3],
+                                    [0, 2],
+                                    [1, 4]
+                                ];
+                                
+                                let num_turned = if cycle_time < 0.5 {
+                                    0
+                                } else if cycle_time < 2.5 {
+                                    ((cycle_time - 0.5) / 0.2) as usize
+                                } else {
+                                    10
+                                };
                                 
                                 for row in 0..5 {
                                     for col in 0..5 {
@@ -250,10 +265,18 @@ impl<'a> UI<'a> {
                                         let cy = start_y + (row as f32) * (cell_size + spacing);
                                         let center = Pos2::new(cx, cy);
                                         
-                                        let is_active = row == active_row && col <= active_col;
+                                        let mut is_white = false;
+                                        if let Some(c_idx) = white_targets[row].iter().position(|&x| x == col) {
+                                            let flat_idx = row * 2 + c_idx;
+                                            if flat_idx < num_turned {
+                                                is_white = true;
+                                            }
+                                        }
                                         
-                                        let fill = if is_active { BUTTON_COLOR } else { BACKGROUND_COLOR };
-                                        let stroke_w = if is_active { 4.0 } else { 2.0 };
+                                        let is_black = !is_white;
+                                        
+                                        let fill = if is_black { BUTTON_COLOR } else { BACKGROUND_COLOR };
+                                        let stroke_w = if is_black { 4.0 } else { 2.0 };
                                         let stroke = Stroke::new(stroke_w, BUTTON_COLOR);
                                         
                                         let r = Rect::from_center_size(center, Vec2::splat(cell_size));
