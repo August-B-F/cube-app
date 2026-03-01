@@ -114,7 +114,7 @@ impl VideoState {
                 let frame_size = width * height * 4;
                 let mut buffer = vec![0u8; frame_size];
                 loop {
-                    if let Ok(mut child_lock) = child_arc.try_lock() {
+                    if let Ok(child_lock) = child_arc.try_lock() {
                         if child_lock.is_none() { break; } 
                     }
                     if stdout.read_exact(&mut buffer).is_err() {
