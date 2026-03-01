@@ -37,10 +37,10 @@ impl Icons {
 fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
     let mut svg_data = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("Failed to load {}", path));
     
-    // Inject stroke to make all icons thicker directly into the SVG string
-    if let Some(insert_pos) = svg_data.find("<svg ") {
-        svg_data.insert_str(insert_pos + 5, "stroke=\"#1D1B20\" stroke-width=\"0.8\" stroke-linejoin=\"round\" ");
-    }
+    // Inject stroke to make all icons thicker safely by modifying <path> instead of <svg>
+    // because some icons might already have a stroke or stroke-width in the <svg> element.
+    // Replace all instances of `<path ` with `<path stroke="#1D1B20" stroke-width="0.8" stroke-linejoin="round" `
+    svg_data = svg_data.replace("<path ", "<path stroke=\"#1D1B20\" stroke-width=\"0.8\" stroke-linejoin=\"round\" ");
     
     let opt = usvg::Options::default();
     let tree = usvg::Tree::from_data(svg_data.as_bytes(), &opt).unwrap();
