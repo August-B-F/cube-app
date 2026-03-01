@@ -35,16 +35,17 @@ impl Icons {
 }
 
 fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
-    let svg_data = std::fs::read(path).unwrap_or_else(|_| panic!("Failed to load {}", path));
+    let mut svg_data = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("Failed to load {}", path));
+    
+    // Inject stroke to make all icons thicker directly into the SVG string
+    if let Some(insert_pos) = svg_data.find("<svg ") {
+        svg_data.insert_str(insert_pos + 5, "stroke=\"#1D1B20\" stroke-width=\"0.8\" stroke-linejoin=\"round\" ");
+    }
     
     let opt = usvg::Options::default();
-    let tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
+    let tree = usvg::Tree::from_data(svg_data.as_bytes(), &opt).unwrap();
     
     // Scale specifically for our UI usage. 
-    // The touch buttons are max 60x60. The image inside them is drawn at size * 0.6 (so 36x36).
-    // The history/options list draws them at 32x32.
-    // If we render them exactly at a very high resolution and let the GPU do basic filtering,
-    // they stay perfectly smooth.
     let scale = 16.0; 
     let size = tree.size();
     
@@ -63,8 +64,6 @@ fn load_svg(ctx: &Context, path: &str, name: &str) -> TextureHandle {
         pixmap.data(),
     );
 
-    // Egui's default LINEAR scaling can sometimes be buggy depending on the backend (e.g. glow vs wgpu).
-    // We enforce an explicit linear min/mag filter.
     let mut options = TextureOptions::LINEAR;
     options.magnification = eframe::egui::TextureFilter::Linear;
     options.minification = eframe::egui::TextureFilter::Linear;
