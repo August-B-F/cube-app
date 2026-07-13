@@ -26,7 +26,6 @@ function App() {
   const [explanationContent, setExplanationContent] = useState('');
   const catagories = ['ACTIONS', 'DREAMS', 'SONGS', 'EMOTIONS', 'WALKS', 'HEARTBEAT', 'PAINTINGS', 'FABLES', 'THOUGHTS', 'PEOPLE', 'TRASH', 'NEWS', 'PLACES', 'IDEAS', 'POLLUTION', 'WEATHER', 'CLOUDS', 'WIND', 'ACCOUNTS', 'INSIGHTS', 'ESSAYS', 'TOOLS', 'MANUAL', 'JOURNAL', 'PHOTOS', 'ORIGINS', 'FRIENDS', 'FILMS', 'THEATER', 'LECTURES', 'ARCHIVE', 'EDITIONS', 'WEBSITE', 'MATRICES', 'TEXTURES', 'EXHIBITS'];
 
-  // Modify your closeAllSettings function
   const closeAllSettings = (hideSettings = false) => {
     if (openOptions) {
       setIsClosing(true);

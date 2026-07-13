@@ -1,101 +1,30 @@
 # Cube App
 
-An Electron.js desktop application for Italian artist Alberto Frigo, designed to present and explore multimedia “projects” stored inside an 8×8×8 meter cube in the Alps. The cube holds many codes that can be decoded with this app. These files include text, video, audio, PDF or image files letting the artist dynamically showcase his work.
+Electron desktop app for the artist Alberto Frigo. His work is organized as an 8x8x8 meter cube in the Alps, where each project has a code. This app decodes those codes and opens the matching file from a content folder.
 
 ![Cube Preview](assets/cube-app-gif.gif)
 
----
+You enter a project code on a grid. The app looks for a file with that name and any of the supported extensions (`.txt`, `.pdf`, `.mp3`, `.mp4`, `.jpg`, `.png`, `.html`) and displays it inline. Text and HTML are read directly; PDF, audio, video and images open in a built-in viewer. Each project also has an explanation text in `assets/explanations/` (English) and `assets/explanations_it/` (Italian).
 
-## Overview
+UI is English or Italian. Viewed projects are kept in a history list. Runs fullscreen. Tested on Windows and Linux.
 
-Cube App is a cross-platform (Windows & Linux) Electron.js application that lets you:
+## Run
 
-- Browse and display multiple project files.   
-- Switch the UI language between English and Italian  
-- Keep track of which projects you’ve viewed  
-- View PDFs, text documents, videos, audio and images without leaving the app  
+```bash
+npm install
+npm start
+```
 
-Ideal for art installations or interactive exhibitions.
+Projects load from `/home/user/` by default. Change the `contentFolder` value in `src/js/App.js` to point elsewhere.
 
----
+Build installers:
 
-## Table of Contents
-
-1. [Features](#features)  
-2. [Getting Started](#getting-started)  
-3. [Project Structure](#project-structure)  
-4. [Prerequisites](#prerequisites)  
-5. [Installation & Usage](#installation--usage)  
-6. [License](#license)  
-7. [Contact](#contact)  
-
----
-
-## Features
-
-- **Scalable UI** that adapts to the window size  
-- **Bilingual interface**: English ↔ Italian  
-- **History tracking** of viewed projects  
-- **Built-in viewer** for PDF, text, video, sound and images  
-
----
-
-## Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
-
-### Prerequisites
-
-- **Node.js** ≥ 14.x  
-- **npm** (comes with Node.js)  
-- **Electron** (installed via npm)  
-
-> **Note:** macOS is untested but may work with minor tweaks.
-
----
-
-## Installation & Usage
-
-1. **Clone the repo**  
-
-   ```bash
-   git clone https://github.com/Bob1883/cube-app
-   cd cube-app
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Configure your content folder**
-
-   * By default the app loads projects from /home/user/
-   * To point to a different folder, edit the `contentFolder` path in `main.js`.
-
-4. **Run in development**
-
-   ```bash
-   npm start
-   ```
-
-5. **Build for distribution**
-
-   ```bash
-   npm run package
-   ```
-
-   This will produce platform-specific installers in `dist/`.
-
----
+```bash
+npm run build
+```
 
 ## License
 
-This project is licensed for educational and non-commercial use only. You’re welcome to fork, adapt and share. Please retain attribution to Alberto Frigo.
----
+Educational and non-commercial use. Fork and adapt as you like, but keep attribution to Alberto Frigo.
 
-## Contact
-
-For questions, feedback or collaboration inquiries, please email
-[august.frigo@gmail.com](mailto:august.frigo@gmail.com)
+Contact: august.frigo@gmail.com
